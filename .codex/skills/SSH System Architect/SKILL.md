@@ -1,9 +1,9 @@
 ---
-name: remote-infra-orchestrator
+name: "SSH System Architect"
 description: Coordinate remote infrastructure work over OpenSSH through a project-scoped MCP server. Use when Codex needs to inspect or change multiple remote hosts, explain host roles or clusters, compare shared Git-tracked code versus overlays versus runtime files, patch remote services, sync Git state across hosts, discover existing repos on servers, diagnose connectivity or partial network failures, refresh infrastructure indexes, or report host-by-host drift and deployment outcomes. Do not use for generic local coding tasks that do not involve remote hosts, inventory, clusters, or SSH-backed service workflows.
 ---
 
-# Remote Infra Orchestrator
+# SSH System Architect
 
 Read the inventory first. Do not edit or restart anything until the target hosts, role labels, overlays, runtime paths, and intended topology are clear.
 

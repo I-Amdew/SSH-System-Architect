@@ -32,7 +32,7 @@ async function main(): Promise<void> {
     await readFile(path.join(workspaceRoot, "evals/remote_infra_eval_cases.json"), "utf8")
   ) as EvalCase[];
   const skillText = await readFile(
-    path.join(workspaceRoot, ".codex/skills/remote-infra-orchestrator/SKILL.md"),
+    path.join(workspaceRoot, ".codex/skills/SSH System Architect/SKILL.md"),
     "utf8"
   );
 

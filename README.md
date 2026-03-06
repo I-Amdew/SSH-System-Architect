@@ -6,7 +6,7 @@ The repository includes a concrete demo deployment, `demo_sharded_snake`, becaus
 
 ## What is here
 
-- `.codex/skills/remote-infra-orchestrator`: repo-scoped Codex skill for SSH/MCP workflows.
+- `.codex/skills/SSH System Architect`: repo-scoped Codex skill for SSH/MCP workflows.
 - `.codex/config.toml.example`: project-scoped config showing bounded local operation and MCP wiring.
 - `.codex/rules/remote_infra.rules`: example shell policy that blocks or prompts on dangerous local patterns.
 - `packages/remote-infra-types`: shared inventory, snapshot, and tool types.
