@@ -11,10 +11,34 @@ function encodeMessage(message: object): string {
   return `Content-Length: ${Buffer.byteLength(body, "utf8")}\r\n\r\n${body}`;
 }
 
-function decodeMessage(buffer: Buffer): unknown {
-  const separator = buffer.indexOf("\r\n\r\n");
-  const payload = buffer.slice(separator + 4).toString("utf8");
-  return JSON.parse(payload);
+function decodeMessages(buffer: Buffer): { messages: unknown[]; remainder: Buffer } {
+  const messages: unknown[] = [];
+  let cursor = 0;
+
+  while (cursor < buffer.length) {
+    const separator = buffer.indexOf("\r\n\r\n", cursor, "utf8");
+    if (separator === -1) {
+      break;
+    }
+    const header = buffer.slice(cursor, separator).toString("utf8");
+    const match = header.match(/Content-Length:\s*(\d+)/iu);
+    if (!match) {
+      throw new Error("Missing Content-Length header in MCP response");
+    }
+    const contentLength = Number(match[1]);
+    const messageStart = separator + 4;
+    const messageEnd = messageStart + contentLength;
+    if (buffer.length < messageEnd) {
+      break;
+    }
+    messages.push(JSON.parse(buffer.slice(messageStart, messageEnd).toString("utf8")));
+    cursor = messageEnd;
+  }
+
+  return {
+    messages,
+    remainder: buffer.slice(cursor)
+  };
 }
 
 test("MCP server lists tools and hosts in mock mode", async () => {
@@ -34,9 +58,13 @@ test("MCP server lists tools and hosts in mock mode", async () => {
   );
 
   const messages: unknown[] = [];
+  let stdoutBuffer = Buffer.alloc(0);
   const pending = new Promise<void>((resolve, reject) => {
     child.stdout.on("data", (chunk) => {
-      messages.push(decodeMessage(Buffer.from(chunk)));
+      stdoutBuffer = Buffer.concat([stdoutBuffer, Buffer.from(chunk)]);
+      const decoded = decodeMessages(stdoutBuffer);
+      messages.push(...decoded.messages);
+      stdoutBuffer = decoded.remainder;
       if (messages.length >= 3) {
         resolve();
       }
@@ -86,5 +114,6 @@ test("MCP server lists tools and hosts in mock mode", async () => {
   };
 
   assert.ok(toolList.result.tools.some((tool) => tool.name === "refresh_indexes"));
+  assert.ok(toolList.result.tools.some((tool) => tool.name === "bootstrap_host"));
   assert.equal(hostList.result.structuredContent[0].id, "host_a");
 });

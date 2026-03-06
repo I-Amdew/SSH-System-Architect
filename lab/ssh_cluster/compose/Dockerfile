@@ -7,7 +7,7 @@ RUN apt-get update \
 RUN useradd --create-home --shell /bin/bash codex \
   && mkdir -p /var/run/sshd /home/codex/.ssh /srv \
   && chown -R codex:codex /home/codex/.ssh /srv \
-  && echo "codex ALL=(ALL) NOPASSWD: /bin/systemctl" >> /etc/sudoers
+  && echo "codex ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 COPY compose/entrypoint.sh /entrypoint.sh
 COPY compose/sshd_config /etc/ssh/sshd_config

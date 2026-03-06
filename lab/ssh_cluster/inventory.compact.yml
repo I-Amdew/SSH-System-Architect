@@ -73,7 +73,7 @@ vm_adapters:
     enabled: false
     management_host_id: host_a
     image_template: lab/ssh_cluster/templates/libvirt-demo-image.json
-    grant_sudo_on_bootstrap: false
+    grant_sudo_on_bootstrap: true
     supports_delete: true
     supports_snapshots: true
     notes: Remote hypervisor adapter slot for root-capable infrastructure hosts.
@@ -82,7 +82,7 @@ vm_adapters:
     scope: local
     enabled: true
     image_template: lab/ssh_cluster/templates/qemu-cloud-init-image.json
-    grant_sudo_on_bootstrap: false
+    grant_sudo_on_bootstrap: true
     supports_delete: false
     supports_snapshots: false
     notes: Local image-builder slot for preparing VM boot images before upload to managed hypervisors.
@@ -98,7 +98,7 @@ hosts:
     auth_mode: ssh-agent
     secret_ref: keychain:ssh-system-architect/host_a
     privilege_mode: sudo
-    root_allowed: false
+    root_allowed: true
     repo_path: /srv/ssh-system-architect
     cluster_ids:
       - compact_demo
@@ -148,7 +148,7 @@ hosts:
       - name: shard_a_http
         kind: http
         target: http://127.0.0.1:4101/health
-    notes: Runs the browser gateway and the left-half authoritative shard in compact mode.
+    notes: Runs the browser gateway and the left-half authoritative shard in compact mode on a root-capable managed host.
   - id: host_b
     hostname: 127.0.0.1
     port: 2223
@@ -160,7 +160,7 @@ hosts:
     auth_mode: ssh-agent
     secret_ref: wincred:ssh-system-architect/host_b
     privilege_mode: sudo
-    root_allowed: false
+    root_allowed: true
     repo_path: /srv/ssh-system-architect
     cluster_ids:
       - compact_demo
@@ -197,4 +197,4 @@ hosts:
       - name: shard_b_http
         kind: http
         target: http://127.0.0.1:4102/health
-    notes: Runs the right-half authoritative shard and is used to demonstrate host-local drift.
+    notes: Runs the right-half authoritative shard and is used to demonstrate host-local drift on a root-capable managed host.

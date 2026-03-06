@@ -9,12 +9,13 @@ Take a server that already has one or more repos on it, discover what is there, 
 ## Workflow
 
 1. Add the host to inventory with:
-   `ssh_implementation`, `ssh_options`, `cluster_ids`, `repo_discovery_paths`, `managed_scopes`, and any known `existing_repos`.
+   `ssh_implementation`, `ssh_options`, `privilege_mode`, `root_allowed`, `cluster_ids`, `repo_discovery_paths`, `managed_scopes`, and any known `existing_repos`.
 2. Run `diagnose_host_connectivity`.
 3. Run `discover_host_repos`.
 4. Compare discovered repos against `existing_repos` and the intended shared repo.
 5. Decide which repo should become the managed deployment repo and which repos should remain adjacent services.
-6. Refresh indexes.
+6. Run `bootstrap_host` if the target repo path or runtime directories still need to be created.
+7. Refresh indexes.
 
 ## What to record
 

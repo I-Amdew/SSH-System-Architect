@@ -1,9 +1,21 @@
 {
   "name": "ssh-system-architect",
   "version": "0.1.0",
+  "description": "Codex-ready SSH infrastructure orchestration over a local MCP server.",
+  "license": "Apache-2.0",
   "private": true,
   "type": "module",
   "packageManager": "npm@10.9.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "codex",
+    "mcp",
+    "ssh",
+    "infrastructure",
+    "orchestration"
+  ],
   "workspaces": [
     "packages/*",
     "examples/demo_sharded_snake/apps/*",

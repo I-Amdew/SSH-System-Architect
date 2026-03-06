@@ -76,6 +76,57 @@ export class RemoteInfraOrchestrator {
     return this.inventory;
   }
 
+  describeControlPlane() {
+    const rootCapableHosts = this.inventory.hosts
+      .filter((host) => host.rootAllowed || host.privilegeMode === "root" || host.privilegeMode === "sudo")
+      .map((host) => ({
+        id: host.id,
+        privilegeMode: host.privilegeMode,
+        rootAllowed: host.rootAllowed
+      }));
+
+    return {
+      name: "SSH System Architect",
+      server: "remote-infra-mcp",
+      version: "0.1.0",
+      repo: {
+        name: this.inventory.repo.name,
+        gitRemote: this.inventory.repo.gitRemote,
+        defaultBranch: this.inventory.repo.defaultBranch,
+        intendedCommit: this.inventory.repo.intendedCommit
+      },
+      inventoryScope: {
+        hostCount: this.inventory.hosts.length,
+        clusterCount: this.inventory.clusters.length,
+        vmAdapterCount: this.inventory.vmAdapters.length,
+        rootCapableHosts
+      },
+      capabilities: {
+        supportsOpenSsh: true,
+        supportsRepoDiscovery: true,
+        supportsBootstrapHost: true,
+        supportsClusterActions: true,
+        supportsIndexRefresh: true,
+        destructiveToolsEnabled: this.options.allowDestructiveTools && this.inventory.safety.destructiveToolsEnabled
+      },
+      routineTools: [
+        "list_hosts",
+        "list_clusters",
+        "explain_host_role",
+        "read_remote_file",
+        "write_remote_file",
+        "apply_remote_patch",
+        "git_pull_group",
+        "restart_service_group",
+        "discover_host_repos",
+        "bootstrap_host",
+        "refresh_indexes"
+      ],
+      destructiveTools: ["vm_create", "vm_delete", "wipe_host", "destroy_data", "rotate_deploy_key", "reimage_host"],
+      safety: this.inventory.safety
+    };
+  }
+
   getHost(hostId: string): HostDefinition {
     const host = this.inventory.hosts.find((entry) => entry.id === hostId);
     if (!host) {
@@ -143,6 +194,180 @@ export class RemoteInfraOrchestrator {
 
   listVmAdapters() {
     return this.inventory.vmAdapters;
+  }
+
+  async bootstrapHost(
+    hostId: string,
+    options?: {
+      repositoryUrl?: string;
+      branch?: string;
+      createRuntimeDirs?: boolean;
+      createOverlayDirs?: boolean;
+      reason?: string;
+    }
+  ) {
+    const host = this.getHost(hostId);
+    if (!host.mutable) {
+      throw new Error(`Host ${hostId} is marked immutable and cannot be bootstrapped`);
+    }
+
+    const repositoryUrl = options?.repositoryUrl ?? this.inventory.repo.gitRemote;
+    const branch = options?.branch ?? this.inventory.repo.defaultBranch;
+    const requiresPrivilege = host.privilegeMode !== "none";
+    const createdDirectories: string[] = [];
+    const notes: string[] = [];
+
+    const repoParent = path.posix.dirname(host.repoPath);
+    await this.runRemoteCommand(hostId, {
+      argv: ["mkdir", "-p", repoParent],
+      requiresPrivilege,
+      reason: options?.reason ?? "Prepare repo parent directory"
+    });
+
+    const repoProbe = await this.runRemoteCommand(hostId, {
+      argv: ["git", "-C", host.repoPath, "rev-parse", "--is-inside-work-tree"]
+    });
+
+    let clonedRepo = false;
+    if (repoProbe.code !== 0) {
+      const cloneResult = await this.runRemoteCommand(hostId, {
+        argv: ["git", "clone", "--branch", branch, repositoryUrl, host.repoPath],
+        requiresPrivilege,
+        reason: options?.reason ?? "Clone managed repo during host bootstrap"
+      });
+      if (cloneResult.code !== 0) {
+        throw new Error(cloneResult.stderr.trim() || `Unable to clone ${repositoryUrl} onto ${hostId}`);
+      }
+      clonedRepo = true;
+      notes.push(`Cloned ${repositoryUrl} into ${host.repoPath}`);
+    } else {
+      notes.push(`Repo already present at ${host.repoPath}`);
+    }
+
+    const targetDirs = new Set<string>();
+    if (options?.createRuntimeDirs !== false) {
+      for (const runtimePath of host.runtimePaths) {
+        targetDirs.add(runtimePath.startsWith("/") ? runtimePath : path.posix.join(host.repoPath, runtimePath));
+      }
+    }
+    if (options?.createOverlayDirs === true) {
+      for (const overlayPath of host.overlayPaths) {
+        if (overlayPath.startsWith("/")) {
+          targetDirs.add(overlayPath);
+        }
+      }
+    }
+
+    for (const targetDir of targetDirs) {
+      const result = await this.runRemoteCommand(hostId, {
+        argv: ["mkdir", "-p", targetDir],
+        requiresPrivilege,
+        reason: options?.reason ?? "Prepare managed directories during host bootstrap"
+      });
+      if (result.code !== 0) {
+        throw new Error(result.stderr.trim() || `Unable to create directory ${targetDir} on ${hostId}`);
+      }
+      createdDirectories.push(targetDir);
+    }
+
+    return {
+      hostId,
+      repoPath: host.repoPath,
+      repositoryUrl,
+      branch,
+      privilegeMode: host.privilegeMode,
+      rootAllowed: host.rootAllowed,
+      clonedRepo,
+      createdDirectories,
+      notes
+    };
+  }
+
+  async bootstrapHost(
+    hostId: string,
+    options?: {
+      repositoryUrl?: string;
+      branch?: string;
+      createRuntimeDirs?: boolean;
+      createOverlayDirs?: boolean;
+      reason?: string;
+    }
+  ) {
+    const host = this.getHost(hostId);
+    if (!host.mutable) {
+      throw new Error(`Host ${hostId} is marked immutable and cannot be bootstrapped`);
+    }
+
+    const repositoryUrl = options?.repositoryUrl ?? this.inventory.repo.gitRemote;
+    const branch = options?.branch ?? this.inventory.repo.defaultBranch;
+    const requiresPrivilege = host.privilegeMode !== "none";
+    const createdDirectories: string[] = [];
+    const notes: string[] = [];
+
+    const repoParent = path.posix.dirname(host.repoPath);
+    await this.runRemoteCommand(hostId, {
+      argv: ["mkdir", "-p", repoParent],
+      requiresPrivilege,
+      reason: options?.reason ?? "Prepare repo parent directory"
+    });
+
+    const repoProbe = await this.runRemoteCommand(hostId, {
+      argv: ["git", "-C", host.repoPath, "rev-parse", "--is-inside-work-tree"]
+    });
+
+    let clonedRepo = false;
+    if (repoProbe.code !== 0) {
+      const cloneResult = await this.runRemoteCommand(hostId, {
+        argv: ["git", "clone", "--branch", branch, repositoryUrl, host.repoPath],
+        requiresPrivilege,
+        reason: options?.reason ?? "Clone managed repo during host bootstrap"
+      });
+      if (cloneResult.code !== 0) {
+        throw new Error(cloneResult.stderr.trim() || `Unable to clone ${repositoryUrl} onto ${hostId}`);
+      }
+      clonedRepo = true;
+      notes.push(`Cloned ${repositoryUrl} into ${host.repoPath}`);
+    } else {
+      notes.push(`Repo already present at ${host.repoPath}`);
+    }
+
+    const targetDirs = new Set<string>();
+    if (options?.createRuntimeDirs !== false) {
+      for (const runtimePath of host.runtimePaths) {
+        targetDirs.add(runtimePath.startsWith("/") ? runtimePath : path.posix.join(host.repoPath, runtimePath));
+      }
+    }
+    if (options?.createOverlayDirs === true) {
+      for (const overlayPath of host.overlayPaths) {
+        if (overlayPath.startsWith("/")) {
+          targetDirs.add(overlayPath);
+        }
+      }
+    }
+
+    for (const targetDir of targetDirs) {
+      const result = await this.runRemoteCommand(hostId, {
+        argv: ["mkdir", "-p", targetDir],
+        requiresPrivilege,
+        reason: options?.reason ?? "Prepare managed directories during host bootstrap"
+      });
+      if (result.code !== 0) {
+        throw new Error(result.stderr.trim() || `Unable to create directory ${targetDir} on ${hostId}`);
+      }
+      createdDirectories.push(targetDir);
+    }
+
+    return {
+      hostId,
+      repoPath: host.repoPath,
+      repositoryUrl,
+      branch,
+      privilegeMode: host.privilegeMode,
+      rootAllowed: host.rootAllowed,
+      clonedRepo,
+      createdDirectories,
+      notes
+    };
   }
 
   private resolveHosts(hostIds?: string[], clusterId?: string): HostDefinition[] {

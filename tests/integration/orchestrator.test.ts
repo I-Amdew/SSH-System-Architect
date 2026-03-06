@@ -69,6 +69,10 @@ test("orchestrator patches remote content, reports state, and refreshes indexes"
     workspaceRoot
   });
 
+  const controlPlane = orchestrator.describeControlPlane();
+  assert.equal(controlPlane.name, "SSH System Architect");
+  assert.equal(controlPlane.capabilities.supportsBootstrapHost, true);
+
   const patchResult = await orchestrator.applyRemotePatch(
     "host_a",
     "examples/demo_sharded_snake/deploy/overlays/gateway/gateway.config.json",
@@ -101,4 +105,8 @@ test("orchestrator patches remote content, reports state, and refreshes indexes"
 
   const repoDiscovery = await orchestrator.discoverHostRepos("host_a");
   assert.ok(Array.isArray(repoDiscovery.repos));
+
+  const bootstrapResult = await orchestrator.bootstrapHost("host_a");
+  assert.equal(bootstrapResult.hostId, "host_a");
+  assert.ok(Array.isArray(bootstrapResult.createdDirectories));
 });

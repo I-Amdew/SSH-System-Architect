@@ -1,4 +1,4 @@
-schema_version: v1
-display_name: SSH System Architect
-short_description: SSH and MCP workflows for multi-host infrastructure
-default_prompt: Inspect inventory, use MCP tools for remote changes, refresh indexes, and report results by host.
+interface:
+  display_name: "SSH System Architect"
+  short_description: "SSH and MCP workflows for multi-host infrastructure"
+  default_prompt: "Inspect inventory, use MCP tools for remote changes, refresh indexes, and report results by host."

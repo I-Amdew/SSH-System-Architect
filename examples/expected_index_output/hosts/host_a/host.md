@@ -5,7 +5,7 @@
 - Network zone: `lab-edge-a`
 - SSH implementation: `openssh`
 - Privilege mode: `sudo`
-- Root allowed: `false`
+- Root allowed: `true`
 - Mutable: `true`
 - Deletion protected: `true`
 - Role summary: host_a runs the gateway and the left-half authoritative shard in compact mode.

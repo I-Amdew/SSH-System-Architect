@@ -1,5 +1,13 @@
 export const TOOL_DEFINITIONS = [
   {
+    name: "describe_control_plane",
+    description: "Describe the MCP control plane, its safety model, and the current inventory scope.",
+    inputSchema: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
     name: "list_hosts",
     description: "List SSH hosts from inventory with role labels and safety metadata.",
     inputSchema: {
@@ -289,6 +297,22 @@ export const TOOL_DEFINITIONS = [
       required: ["hostId"],
       properties: {
         hostId: { type: "string" }
+      }
+    }
+  },
+  {
+    name: "bootstrap_host",
+    description: "Prepare a mutable host for management by ensuring the repo path and runtime directories exist, and clone the repo if missing.",
+    inputSchema: {
+      type: "object",
+      required: ["hostId"],
+      properties: {
+        hostId: { type: "string" },
+        repositoryUrl: { type: "string" },
+        branch: { type: "string" },
+        createRuntimeDirs: { type: "boolean" },
+        createOverlayDirs: { type: "boolean" },
+        reason: { type: "string" }
       }
     }
   },

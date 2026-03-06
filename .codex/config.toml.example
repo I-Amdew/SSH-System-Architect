@@ -53,6 +53,8 @@ REMOTE_INFRA_TRANSPORT = "ssh"
 inventory = "lab/ssh_cluster/inventory.compact.yml"
 index_root = ".infra-index"
 ssh_client = "openssh"
+# Remote hosts are modeled per inventory entry. The demo inventories assume
+# root-capable managed hosts via sudo-capable admin users.
 secret_backends = [
   "ssh-agent",
   "keychain",

@@ -55,7 +55,7 @@ vm_adapters:
     enabled: false
     management_host_id: gateway_host
     image_template: lab/ssh_cluster/templates/libvirt-demo-image.json
-    grant_sudo_on_bootstrap: false
+    grant_sudo_on_bootstrap: true
     supports_delete: true
     supports_snapshots: true
     notes: Remote hypervisor adapter slot for later infrastructure expansion.
@@ -71,7 +71,7 @@ hosts:
     auth_mode: ssh-agent
     secret_ref: keychain:ssh-system-architect/gateway_host
     privilege_mode: sudo
-    root_allowed: false
+    root_allowed: true
     repo_path: /srv/ssh-system-architect
     cluster_ids:
       - three_host_demo
@@ -108,7 +108,7 @@ hosts:
       - name: gateway_http
         kind: http
         target: http://127.0.0.1:8080/health
-    notes: Runs only the browser gateway.
+    notes: Runs only the browser gateway on a root-capable managed host.
   - id: shard_a_host
     hostname: 127.0.0.1
     port: 2222
@@ -120,7 +120,7 @@ hosts:
     auth_mode: ssh-agent
     secret_ref: keychain:ssh-system-architect/shard_a_host
     privilege_mode: sudo
-    root_allowed: false
+    root_allowed: true
     repo_path: /srv/ssh-system-architect
     cluster_ids:
       - three_host_demo
@@ -155,7 +155,7 @@ hosts:
       - name: shard_a_http
         kind: http
         target: http://127.0.0.1:4101/health
-    notes: Runs only the left-half shard.
+    notes: Runs only the left-half shard on a root-capable managed host.
   - id: shard_b_host
     hostname: 127.0.0.1
     port: 2223
@@ -167,7 +167,7 @@ hosts:
     auth_mode: ssh-agent
     secret_ref: wincred:ssh-system-architect/shard_b_host
     privilege_mode: sudo
-    root_allowed: false
+    root_allowed: true
     repo_path: /srv/ssh-system-architect
     cluster_ids:
       - three_host_demo
@@ -202,4 +202,4 @@ hosts:
       - name: shard_b_http
         kind: http
         target: http://127.0.0.1:4102/health
-    notes: Runs only the right-half shard.
+    notes: Runs only the right-half shard on a root-capable managed host.

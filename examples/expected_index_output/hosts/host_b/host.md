@@ -5,7 +5,7 @@
 - Network zone: `lab-edge-b`
 - SSH implementation: `openssh`
 - Privilege mode: `sudo`
-- Root allowed: `false`
+- Root allowed: `true`
 - Mutable: `true`
 - Deletion protected: `true`
 - Role summary: host_b runs the right-half authoritative shard and intentionally carries a local shared-code drift example.

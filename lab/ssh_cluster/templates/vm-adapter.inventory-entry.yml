@@ -4,7 +4,7 @@
   enabled: false
   management_host_id: new_host
   image_template: lab/ssh_cluster/templates/libvirt-demo-image.json
-  grant_sudo_on_bootstrap: false
+  grant_sudo_on_bootstrap: true
   supports_delete: true
   supports_snapshots: true
-  notes: Replace with your real hypervisor or image builder details.
+  notes: Replace with your real hypervisor or image builder details. Bootstrap images can provision a root-capable admin account.

@@ -19,7 +19,7 @@ This is the default example because it makes the indexing model obvious:
 - `shard_a_host`
 - `shard_b_host`
 
-Use [lab/ssh_cluster/inventory.three-host.yml](/Users/andrewturner/Projects/SSH System Architect/lab/ssh_cluster/inventory.three-host.yml) when you want a cleaner one-role-per-host deployment.
+Use `lab/ssh_cluster/inventory.three-host.yml` when you want a cleaner one-role-per-host deployment.
 
 ## Boundary handoff
 

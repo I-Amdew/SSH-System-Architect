@@ -9,7 +9,7 @@
   auth_mode: ssh-agent
   secret_ref: keychain:ssh-system-architect/new_host
   privilege_mode: sudo
-  root_allowed: false
+  root_allowed: true
   repo_path: /srv/ssh-system-architect
   cluster_ids:
     - your_cluster
@@ -30,4 +30,4 @@
       remote: git@github.com:example/ssh-system-architect.git
       branch: main
       role: primary deployment repo
-  notes: Replace these fields before adding the host to inventory.
+  notes: Replace these fields before adding the host to inventory. This template assumes a root-capable managed host.

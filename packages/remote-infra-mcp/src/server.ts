@@ -148,6 +148,8 @@ export class RemoteInfraMcpServer {
 
   private async invokeTool(toolName: string, args: Record<string, unknown>): Promise<unknown> {
     switch (toolName) {
+      case "describe_control_plane":
+        return this.orchestrator.describeControlPlane();
       case "list_hosts":
         return this.orchestrator.listHosts();
       case "read_inventory":
@@ -244,6 +246,14 @@ export class RemoteInfraMcpServer {
         );
       case "discover_host_repos":
         return this.orchestrator.discoverHostRepos(String(args.hostId));
+      case "bootstrap_host":
+        return this.orchestrator.bootstrapHost(String(args.hostId), {
+          repositoryUrl: args.repositoryUrl ? String(args.repositoryUrl) : undefined,
+          branch: args.branch ? String(args.branch) : undefined,
+          createRuntimeDirs: args.createRuntimeDirs === undefined ? undefined : Boolean(args.createRuntimeDirs),
+          createOverlayDirs: args.createOverlayDirs === undefined ? undefined : Boolean(args.createOverlayDirs),
+          reason: args.reason ? String(args.reason) : undefined
+        });
       case "git_pull_group":
         return this.orchestrator.gitPullGroup(
           args.clusterId ? String(args.clusterId) : undefined,

@@ -23,7 +23,7 @@ SSH System Architect has three runtime layers:
 - The system transport uses the machine's `ssh` client.
 - On macOS and Windows, that means OpenSSH as installed by the OS or the user's toolchain.
 - Per-host `ssh_options` are inventory data, not hardcoded shell aliases.
-- Root-capable hosts are modeled explicitly with `privilege_mode` and `root_allowed`; they are not assumed globally.
+- Public example inventories assume remote hosts are root-capable through `sudo` or direct root SSH, but the capability is still modeled explicitly with `privilege_mode` and `root_allowed`.
 
 ## Demo flow
 
@@ -53,4 +53,5 @@ The demo is intentionally small, but the inventory model now carries:
 - clusters for grouped actions,
 - repo discovery roots for adopting existing machines,
 - VM adapter slots for hypervisors or image builders,
+- bootstrap-ready host metadata for first-time setup,
 - managed scopes that tell Codex what a host is allowed to touch.

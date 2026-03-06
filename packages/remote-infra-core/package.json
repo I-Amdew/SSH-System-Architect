@@ -1,6 +1,8 @@
 {
   "name": "@ssh-system-architect/remote-infra-core",
   "version": "0.1.0",
+  "description": "Core inventory, orchestration, transport, and indexing logic for SSH System Architect.",
+  "license": "Apache-2.0",
   "private": true,
   "type": "module"
 }

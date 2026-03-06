@@ -14,6 +14,7 @@ test("inventory parser loads compact topology", async () => {
   assert.equal(inventory.vmAdapters.length, 2);
   assert.equal(inventory.hosts[0].id, "host_a");
   assert.equal(inventory.hosts[0].sshImplementation, "openssh");
+  assert.equal(inventory.hosts[0].rootAllowed, true);
   assert.equal(inventory.hosts[1].roleLabels[0], "shard_b");
   assert.equal(inventory.safety.destructiveToolsEnabled, false);
 });

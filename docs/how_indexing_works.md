@@ -25,4 +25,4 @@ The index is a local control-plane mirror of remote state. It is written under `
 4. Render host summaries and tree indexes.
 5. Keep exhaustive per-file docs off by default to avoid noisy output.
 
-Use [examples/expected_index_output](/Users/andrewturner/Projects/SSH System Architect/examples/expected_index_output) as the reference snapshot for the demo topology.
+Use `examples/expected_index_output/` as the reference snapshot for the demo topology.

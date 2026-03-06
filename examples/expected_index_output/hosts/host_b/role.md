@@ -1,6 +1,6 @@
 # Role: host_b
 
-Runs the right-half authoritative shard and is used to demonstrate host-local drift.
+Runs the right-half authoritative shard and is used to demonstrate host-local drift on a root-capable managed host.
 
 ## Managed scopes
 - `shard`

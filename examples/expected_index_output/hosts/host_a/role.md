@@ -1,6 +1,6 @@
 # Role: host_a
 
-Runs the browser gateway and the left-half authoritative shard in compact mode.
+Runs the browser gateway and the left-half authoritative shard in compact mode on a root-capable managed host.
 
 ## Managed scopes
 - `gateway`

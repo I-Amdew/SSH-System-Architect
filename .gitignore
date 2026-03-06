@@ -5,6 +5,9 @@ coverage/
 *.log
 .env
 .env.local
+*.local.yml
+*.local.yaml
+.codex/config.toml
 lab/ssh_cluster/.state/
 examples/demo_sharded_snake/runtime/
 .infra-index/*
