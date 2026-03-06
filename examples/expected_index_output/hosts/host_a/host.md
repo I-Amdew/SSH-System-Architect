@@ -1,0 +1,11 @@
+# Host: host_a
+- SSH target: `codex@127.0.0.1:2222`
+- Roles: `gateway, shard_a`
+- Clusters: `compact_demo, shard_plane`
+- Network zone: `lab-edge-a`
+- SSH implementation: `openssh`
+- Privilege mode: `sudo`
+- Root allowed: `false`
+- Mutable: `true`
+- Deletion protected: `true`
+- Role summary: host_a runs the gateway and the left-half authoritative shard in compact mode.

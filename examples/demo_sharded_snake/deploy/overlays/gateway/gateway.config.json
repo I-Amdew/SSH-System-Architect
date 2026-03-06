@@ -1,0 +1,24 @@
+{
+  "listenPort": 8080,
+  "tickMs": 300,
+  "runtimeDir": "examples/demo_sharded_snake/runtime/gateway",
+  "board": {
+    "width": 20,
+    "height": 10,
+    "boundaryX": 10
+  },
+  "shards": [
+    {
+      "id": "shard_a",
+      "url": "http://127.0.0.1:4101",
+      "role": "left-half authoritative shard",
+      "ownedColumns": [0, 9]
+    },
+    {
+      "id": "shard_b",
+      "url": "http://127.0.0.1:4102",
+      "role": "right-half authoritative shard",
+      "ownedColumns": [10, 19]
+    }
+  ]
+}

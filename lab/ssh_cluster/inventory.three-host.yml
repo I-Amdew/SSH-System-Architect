@@ -1,0 +1,205 @@
+version: "1"
+repo:
+  name: ssh-system-architect
+  git_remote: git@github.com:example/ssh-system-architect.git
+  repo_root: .
+  default_branch: main
+  intended_commit: 7d9e3aa
+  shared_roots:
+    - examples/demo_sharded_snake/apps/web_gateway
+    - examples/demo_sharded_snake/services/snake_shard
+    - examples/demo_sharded_snake/packages/shared_protocol
+  runtime_root_hints:
+    - examples/demo_sharded_snake/runtime
+repo_discovery:
+  scan_roots:
+    - /srv
+    - /opt/services
+  repo_markers:
+    - .git
+  index_existing_repos: true
+secret_backends:
+  - id: ssh_agent
+    kind: ssh-agent
+    enabled: true
+  - id: os_keychain
+    kind: keychain
+    enabled: true
+  - id: windows_credential_manager
+    kind: wincred
+    enabled: true
+  - id: env_fallback
+    kind: env
+    enabled: true
+safety:
+  destructive_tools_enabled: false
+  require_confirmation_token: true
+  local_shell_assumption: workspace-write
+  notes:
+    - Same shared repo, separated gateway host.
+clusters:
+  - id: three_host_demo
+    display_name: Three-host demo cluster
+    host_ids:
+      - gateway_host
+      - shard_a_host
+      - shard_b_host
+    purpose: One role per host for cleaner service isolation.
+    service_groups:
+      - demo_sharded_snake
+    mutable: true
+vm_adapters:
+  - id: remote_libvirt
+    kind: libvirt
+    scope: remote-host
+    enabled: false
+    management_host_id: gateway_host
+    image_template: lab/ssh_cluster/templates/libvirt-demo-image.json
+    grant_sudo_on_bootstrap: false
+    supports_delete: true
+    supports_snapshots: true
+    notes: Remote hypervisor adapter slot for later infrastructure expansion.
+hosts:
+  - id: gateway_host
+    hostname: 127.0.0.1
+    port: 2224
+    ssh_user: codex
+    ssh_implementation: openssh
+    ssh_options:
+      - -o
+      - BatchMode=yes
+    auth_mode: ssh-agent
+    secret_ref: keychain:ssh-system-architect/gateway_host
+    privilege_mode: sudo
+    root_allowed: false
+    repo_path: /srv/ssh-system-architect
+    cluster_ids:
+      - three_host_demo
+    network_zone: lab-gateway
+    role_labels:
+      - gateway
+    mutable: true
+    deletion_protected: true
+    managed_scopes:
+      - gateway
+      - repo-sync
+      - diagnostics
+    repo_discovery_paths:
+      - /srv
+    existing_repos:
+      - id: ssh_system_architect
+        path: /srv/ssh-system-architect
+        remote: git@github.com:example/ssh-system-architect.git
+        branch: main
+        role: primary deployment repo
+    vm_adapter_ids:
+      - remote_libvirt
+    intended_commit: 7d9e3aa
+    overlay_paths:
+      - examples/demo_sharded_snake/deploy/overlays/gateway
+    runtime_paths:
+      - examples/demo_sharded_snake/runtime/gateway
+    services:
+      - name: web_gateway
+        manager: systemd
+        unit: demo-sharded-snake-gateway.service
+        restart_requires_privilege: true
+    health_checks:
+      - name: gateway_http
+        kind: http
+        target: http://127.0.0.1:8080/health
+    notes: Runs only the browser gateway.
+  - id: shard_a_host
+    hostname: 127.0.0.1
+    port: 2222
+    ssh_user: codex
+    ssh_implementation: openssh
+    ssh_options:
+      - -o
+      - BatchMode=yes
+    auth_mode: ssh-agent
+    secret_ref: keychain:ssh-system-architect/shard_a_host
+    privilege_mode: sudo
+    root_allowed: false
+    repo_path: /srv/ssh-system-architect
+    cluster_ids:
+      - three_host_demo
+    network_zone: lab-shard-a
+    role_labels:
+      - shard_a
+    mutable: true
+    deletion_protected: true
+    managed_scopes:
+      - shard
+      - repo-sync
+      - diagnostics
+    repo_discovery_paths:
+      - /srv
+    existing_repos:
+      - id: ssh_system_architect
+        path: /srv/ssh-system-architect
+        remote: git@github.com:example/ssh-system-architect.git
+        branch: main
+        role: primary deployment repo
+    intended_commit: 7d9e3aa
+    overlay_paths:
+      - examples/demo_sharded_snake/deploy/overlays/shard_a
+    runtime_paths:
+      - examples/demo_sharded_snake/runtime/shard_a
+    services:
+      - name: snake_shard_a
+        manager: systemd
+        unit: demo-sharded-snake-shard-a.service
+        restart_requires_privilege: true
+    health_checks:
+      - name: shard_a_http
+        kind: http
+        target: http://127.0.0.1:4101/health
+    notes: Runs only the left-half shard.
+  - id: shard_b_host
+    hostname: 127.0.0.1
+    port: 2223
+    ssh_user: codex
+    ssh_implementation: openssh
+    ssh_options:
+      - -o
+      - BatchMode=yes
+    auth_mode: ssh-agent
+    secret_ref: wincred:ssh-system-architect/shard_b_host
+    privilege_mode: sudo
+    root_allowed: false
+    repo_path: /srv/ssh-system-architect
+    cluster_ids:
+      - three_host_demo
+    network_zone: lab-shard-b
+    role_labels:
+      - shard_b
+    mutable: true
+    deletion_protected: true
+    managed_scopes:
+      - shard
+      - repo-sync
+      - diagnostics
+    repo_discovery_paths:
+      - /srv
+    existing_repos:
+      - id: ssh_system_architect
+        path: /srv/ssh-system-architect
+        remote: git@github.com:example/ssh-system-architect.git
+        branch: main
+        role: primary deployment repo
+    intended_commit: 7d9e3aa
+    overlay_paths:
+      - examples/demo_sharded_snake/deploy/overlays/shard_b
+    runtime_paths:
+      - examples/demo_sharded_snake/runtime/shard_b
+    services:
+      - name: snake_shard_b
+        manager: systemd
+        unit: demo-sharded-snake-shard-b.service
+        restart_requires_privilege: true
+    health_checks:
+      - name: shard_b_http
+        kind: http
+        target: http://127.0.0.1:4102/health
+    notes: Runs only the right-half shard.

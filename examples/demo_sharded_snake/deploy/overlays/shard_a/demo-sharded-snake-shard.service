@@ -1,0 +1,14 @@
+[Unit]
+Description=demo_sharded_snake shard_a
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/ssh-system-architect
+EnvironmentFile=/srv/ssh-system-architect/examples/demo_sharded_snake/deploy/overlays/shard_a/shard.env
+ExecStart=/usr/bin/node /srv/ssh-system-architect/examples/demo_sharded_snake/services/snake_shard/src/main.ts --config /srv/ssh-system-architect/examples/demo_sharded_snake/deploy/overlays/shard_a/shard.config.json
+Restart=on-failure
+User=snake
+
+[Install]
+WantedBy=multi-user.target

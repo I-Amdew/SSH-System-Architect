@@ -1,0 +1,8 @@
+{
+  "id": "shard_a",
+  "listenPort": 4101,
+  "hostTag": "host_a",
+  "runtimeDir": "examples/demo_sharded_snake/runtime/shard_a",
+  "ownedColumns": [0, 9],
+  "handoffTarget": "shard_b"
+}

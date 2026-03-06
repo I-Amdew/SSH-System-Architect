@@ -1,0 +1,12 @@
+#cloud-config
+users:
+  - name: codex
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - "REPLACE_WITH_REAL_PUBLIC_KEY"
+package_update: true
+packages:
+  - git
+  - curl
+  - nodejs

@@ -1,0 +1,6 @@
+{
+  "name": "demo-libvirt-image",
+  "baseImage": "ubuntu-24.04-cloudimg-amd64.img",
+  "cloudInitTemplate": "lab/ssh_cluster/templates/cloud-init-demo.yml",
+  "notes": "Example VM image template for remote libvirt-capable management hosts."
+}

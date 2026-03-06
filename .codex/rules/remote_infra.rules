@@ -1,0 +1,54 @@
+[rule]
+name = "prefer-mcp-for-remote-infra"
+action = "prompt"
+match = [
+  "ssh ",
+  "scp ",
+  "rsync ",
+  "ansible ",
+  "kubectl exec ",
+  "powershell Enter-PSSession"
+]
+reason = "Use remote-infra-mcp tools for remote edits, Git sync, service control, and indexing before reaching for ad-hoc shell commands."
+
+[rule]
+name = "block-local-destructive-shell"
+action = "block"
+match = [
+  "rm -rf /",
+  "sudo rm -rf",
+  "diskutil eraseDisk",
+  "dd if=",
+  "mkfs",
+  "format ",
+  "del /s /q",
+  "Remove-Item -Recurse -Force"
+]
+reason = "Keep local destructive shell actions outside the normal remote-infra workflow."
+
+[rule]
+name = "prompt-before-high-risk-remote-shell"
+action = "prompt"
+match = [
+  "ssh .* rm -rf",
+  "ssh .* shutdown",
+  "ssh .* reboot",
+  "ssh .* userdel",
+  "ssh .* dd if=",
+  "ssh .* mkfs"
+]
+reason = "Remote destructive operations belong behind dedicated MCP tools and explicit confirmation."
+
+[rule]
+name = "allow-safe-project-commands"
+action = "allow"
+match = [
+  "git status",
+  "git diff",
+  "npm test",
+  "node scripts/refresh-index.ts",
+  "node scripts/generate-expected-index.ts",
+  "docker compose -f lab/ssh_cluster/docker-compose.yml up",
+  "docker compose -f lab/ssh_cluster/docker-compose.yml down"
+]
+reason = "Allow local repo inspection, tests, index refreshes, and optional lab lifecycle commands."

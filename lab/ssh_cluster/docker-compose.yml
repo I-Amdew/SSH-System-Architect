@@ -1,0 +1,43 @@
+services:
+  host_a:
+    build:
+      context: .
+      dockerfile: compose/Dockerfile
+    hostname: host_a
+    ports:
+      - "${COMPACT_HOST_A_PORT:-2222}:22"
+    environment:
+      HOST_ID: host_a
+    volumes:
+      - ../..:/workspace:ro
+      - ./compose/host_a/bootstrap.sh:/opt/bootstrap.sh:ro
+      - ${LAB_SSH_PUBKEY_PATH:-./compose/host_a/authorized_keys}:/opt/authorized_keys:ro
+
+  host_b:
+    build:
+      context: .
+      dockerfile: compose/Dockerfile
+    hostname: host_b
+    ports:
+      - "${COMPACT_HOST_B_PORT:-2223}:22"
+    environment:
+      HOST_ID: host_b
+    volumes:
+      - ../..:/workspace:ro
+      - ./compose/host_b/bootstrap.sh:/opt/bootstrap.sh:ro
+      - ${LAB_SSH_PUBKEY_PATH:-./compose/host_b/authorized_keys}:/opt/authorized_keys:ro
+
+  gateway_host:
+    profiles: ["three-host"]
+    build:
+      context: .
+      dockerfile: compose/Dockerfile
+    hostname: gateway_host
+    ports:
+      - "${THREE_HOST_GATEWAY_PORT:-2224}:22"
+    environment:
+      HOST_ID: gateway_host
+    volumes:
+      - ../..:/workspace:ro
+      - ./compose/gateway/bootstrap.sh:/opt/bootstrap.sh:ro
+      - ${LAB_SSH_PUBKEY_PATH:-./compose/gateway/authorized_keys}:/opt/authorized_keys:ro

@@ -1,0 +1,11 @@
+node_modules/
+.DS_Store
+dist/
+coverage/
+*.log
+.env
+.env.local
+lab/ssh_cluster/.state/
+examples/demo_sharded_snake/runtime/
+.infra-index/*
+!.infra-index/.gitignore

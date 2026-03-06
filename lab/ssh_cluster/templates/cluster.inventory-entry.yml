@@ -1,0 +1,9 @@
+- id: your_cluster
+  display_name: Your cluster
+  host_ids:
+    - new_host
+  purpose: Replace with the grouped deployment purpose.
+  service_groups:
+    - your_service_group
+  mutable: true
+  notes: Use clusters for group pull, restart, diagnostics, and reporting.

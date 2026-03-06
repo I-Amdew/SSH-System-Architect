@@ -1,0 +1,6 @@
+{
+  "name": "demo-qemu-image",
+  "baseImage": "ubuntu-24.04-cloudimg-amd64.img",
+  "cloudInitTemplate": "lab/ssh_cluster/templates/cloud-init-demo.yml",
+  "notes": "Example local image-builder template before upload to a managed hypervisor."
+}

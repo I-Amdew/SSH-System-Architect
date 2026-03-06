@@ -1,0 +1,33 @@
+- id: new_host
+  hostname: 192.0.2.10
+  port: 22
+  ssh_user: codex
+  ssh_implementation: openssh
+  ssh_options:
+    - -o
+    - BatchMode=yes
+  auth_mode: ssh-agent
+  secret_ref: keychain:ssh-system-architect/new_host
+  privilege_mode: sudo
+  root_allowed: false
+  repo_path: /srv/ssh-system-architect
+  cluster_ids:
+    - your_cluster
+  network_zone: production-a
+  role_labels:
+    - app
+  mutable: true
+  deletion_protected: true
+  managed_scopes:
+    - repo-sync
+    - diagnostics
+  repo_discovery_paths:
+    - /srv
+    - /opt/services
+  existing_repos:
+    - id: ssh_system_architect
+      path: /srv/ssh-system-architect
+      remote: git@github.com:example/ssh-system-architect.git
+      branch: main
+      role: primary deployment repo
+  notes: Replace these fields before adding the host to inventory.

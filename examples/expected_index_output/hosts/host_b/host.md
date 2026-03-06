@@ -1,0 +1,11 @@
+# Host: host_b
+- SSH target: `codex@127.0.0.1:2223`
+- Roles: `shard_b`
+- Clusters: `compact_demo, shard_plane`
+- Network zone: `lab-edge-b`
+- SSH implementation: `openssh`
+- Privilege mode: `sudo`
+- Root allowed: `false`
+- Mutable: `true`
+- Deletion protected: `true`
+- Role summary: host_b runs the right-half authoritative shard and intentionally carries a local shared-code drift example.

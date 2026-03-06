@@ -1,0 +1,200 @@
+version: "1"
+repo:
+  name: ssh-system-architect
+  git_remote: git@github.com:example/ssh-system-architect.git
+  repo_root: .
+  default_branch: main
+  intended_commit: 7d9e3aa
+  shared_roots:
+    - examples/demo_sharded_snake/apps/web_gateway
+    - examples/demo_sharded_snake/services/snake_shard
+    - examples/demo_sharded_snake/packages/shared_protocol
+  runtime_root_hints:
+    - examples/demo_sharded_snake/runtime
+repo_discovery:
+  scan_roots:
+    - /srv
+    - /opt/services
+  repo_markers:
+    - .git
+  index_existing_repos: true
+secret_backends:
+  - id: ssh_agent
+    kind: ssh-agent
+    enabled: true
+    notes: Default path for SSH key auth on macOS and Linux.
+  - id: os_keychain
+    kind: keychain
+    enabled: true
+    notes: Adapter slot for macOS Keychain secret lookup.
+  - id: windows_credential_manager
+    kind: wincred
+    enabled: true
+    notes: Adapter slot for Windows Credential Manager secret lookup.
+  - id: env_fallback
+    kind: env
+    enabled: true
+    notes: Use only for local non-committed testing.
+  - id: password_legacy
+    kind: password
+    enabled: false
+    notes: Disabled by default. Only enable for lab or legacy targets.
+safety:
+  destructive_tools_enabled: false
+  require_confirmation_token: true
+  local_shell_assumption: workspace-write
+  notes:
+    - Local destructive shell commands are not part of the normal workflow.
+    - Prefer MCP tools for remote edits, Git sync, service control, and indexing.
+clusters:
+  - id: compact_demo
+    display_name: Compact demo cluster
+    host_ids:
+      - host_a
+      - host_b
+    purpose: End-to-end demo cluster for gateway plus sharded game services.
+    service_groups:
+      - demo_sharded_snake
+    mutable: true
+    notes: Supports cluster-level pull, restart, diagnostics, and index refresh workflows.
+  - id: shard_plane
+    display_name: Shard plane
+    host_ids:
+      - host_a
+      - host_b
+    purpose: Shared game data plane where shard_a and shard_b coordinate authority handoff.
+    service_groups:
+      - snake_shards
+    mutable: true
+vm_adapters:
+  - id: remote_libvirt
+    kind: libvirt
+    scope: remote-host
+    enabled: false
+    management_host_id: host_a
+    image_template: lab/ssh_cluster/templates/libvirt-demo-image.json
+    grant_sudo_on_bootstrap: false
+    supports_delete: true
+    supports_snapshots: true
+    notes: Remote hypervisor adapter slot for root-capable infrastructure hosts.
+  - id: local_qemu_image
+    kind: qemu
+    scope: local
+    enabled: true
+    image_template: lab/ssh_cluster/templates/qemu-cloud-init-image.json
+    grant_sudo_on_bootstrap: false
+    supports_delete: false
+    supports_snapshots: false
+    notes: Local image-builder slot for preparing VM boot images before upload to managed hypervisors.
+hosts:
+  - id: host_a
+    hostname: 127.0.0.1
+    port: 2222
+    ssh_user: codex
+    ssh_implementation: openssh
+    ssh_options:
+      - -o
+      - BatchMode=yes
+    auth_mode: ssh-agent
+    secret_ref: keychain:ssh-system-architect/host_a
+    privilege_mode: sudo
+    root_allowed: false
+    repo_path: /srv/ssh-system-architect
+    cluster_ids:
+      - compact_demo
+      - shard_plane
+    network_zone: lab-edge-a
+    role_labels:
+      - gateway
+      - shard_a
+    mutable: true
+    deletion_protected: true
+    managed_scopes:
+      - gateway
+      - shard
+      - repo-sync
+      - diagnostics
+    repo_discovery_paths:
+      - /srv
+      - /opt/services
+    existing_repos:
+      - id: ssh_system_architect
+        path: /srv/ssh-system-architect
+        remote: git@github.com:example/ssh-system-architect.git
+        branch: main
+        role: primary deployment repo
+    vm_adapter_ids:
+      - remote_libvirt
+    intended_commit: 7d9e3aa
+    overlay_paths:
+      - examples/demo_sharded_snake/deploy/overlays/gateway
+      - examples/demo_sharded_snake/deploy/overlays/shard_a
+    runtime_paths:
+      - examples/demo_sharded_snake/runtime/gateway
+      - examples/demo_sharded_snake/runtime/shard_a
+    services:
+      - name: web_gateway
+        manager: systemd
+        unit: demo-sharded-snake-gateway.service
+        restart_requires_privilege: true
+      - name: snake_shard_a
+        manager: systemd
+        unit: demo-sharded-snake-shard-a.service
+        restart_requires_privilege: true
+    health_checks:
+      - name: gateway_http
+        kind: http
+        target: http://127.0.0.1:8080/health
+      - name: shard_a_http
+        kind: http
+        target: http://127.0.0.1:4101/health
+    notes: Runs the browser gateway and the left-half authoritative shard in compact mode.
+  - id: host_b
+    hostname: 127.0.0.1
+    port: 2223
+    ssh_user: codex
+    ssh_implementation: openssh
+    ssh_options:
+      - -o
+      - BatchMode=yes
+    auth_mode: ssh-agent
+    secret_ref: wincred:ssh-system-architect/host_b
+    privilege_mode: sudo
+    root_allowed: false
+    repo_path: /srv/ssh-system-architect
+    cluster_ids:
+      - compact_demo
+      - shard_plane
+    network_zone: lab-edge-b
+    role_labels:
+      - shard_b
+    mutable: true
+    deletion_protected: true
+    managed_scopes:
+      - shard
+      - repo-sync
+      - diagnostics
+    repo_discovery_paths:
+      - /srv
+      - /opt/services
+    existing_repos:
+      - id: ssh_system_architect
+        path: /srv/ssh-system-architect
+        remote: git@github.com:example/ssh-system-architect.git
+        branch: main
+        role: primary deployment repo
+    intended_commit: 7d9e3aa
+    overlay_paths:
+      - examples/demo_sharded_snake/deploy/overlays/shard_b
+    runtime_paths:
+      - examples/demo_sharded_snake/runtime/shard_b
+    services:
+      - name: snake_shard_b
+        manager: systemd
+        unit: demo-sharded-snake-shard-b.service
+        restart_requires_privilege: true
+    health_checks:
+      - name: shard_b_http
+        kind: http
+        target: http://127.0.0.1:4102/health
+    notes: Runs the right-half authoritative shard and is used to demonstrate host-local drift.

@@ -1,0 +1,14 @@
+[Unit]
+Description=demo_sharded_snake gateway
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/ssh-system-architect
+EnvironmentFile=/srv/ssh-system-architect/examples/demo_sharded_snake/deploy/overlays/gateway/gateway.env
+ExecStart=/usr/bin/node /srv/ssh-system-architect/examples/demo_sharded_snake/apps/web_gateway/src/main.ts --config /srv/ssh-system-architect/examples/demo_sharded_snake/deploy/overlays/gateway/gateway.config.json
+Restart=on-failure
+User=snake
+
+[Install]
+WantedBy=multi-user.target

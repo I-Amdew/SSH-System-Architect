@@ -1,0 +1,135 @@
+[
+  {
+    "hostId": "host_a",
+    "deployedCommit": "7d9e3aa",
+    "intendedCommit": "7d9e3aa",
+    "repoStatus": {
+      "branch": "main",
+      "head": "7d9e3aa",
+      "clean": true,
+      "ahead": 0,
+      "behind": 0,
+      "modified": [],
+      "deleted": [],
+      "untracked": []
+    },
+    "files": [
+      {
+        "path": "examples/demo_sharded_snake/apps/web_gateway/src/main.ts",
+        "kind": "shared_repo",
+        "tracked": true,
+        "exists": true
+      },
+      {
+        "path": "examples/demo_sharded_snake/services/snake_shard/src/main.ts",
+        "kind": "shared_repo",
+        "tracked": true,
+        "exists": true
+      },
+      {
+        "path": "examples/demo_sharded_snake/packages/shared_protocol/src/index.ts",
+        "kind": "shared_repo",
+        "tracked": true,
+        "exists": true
+      },
+      {
+        "path": "examples/demo_sharded_snake/deploy/overlays/gateway/gateway.config.json",
+        "kind": "overlay",
+        "tracked": true,
+        "exists": true,
+        "notes": "Gateway overlay deployed on host_a"
+      },
+      {
+        "path": "examples/demo_sharded_snake/deploy/overlays/shard_a/shard.config.json",
+        "kind": "overlay",
+        "tracked": true,
+        "exists": true,
+        "notes": "shard_a overlay deployed on host_a"
+      },
+      {
+        "path": "examples/demo_sharded_snake/runtime/gateway/session.json",
+        "kind": "runtime",
+        "tracked": false,
+        "exists": true,
+        "notes": "Gateway runtime session snapshot"
+      },
+      {
+        "path": "examples/demo_sharded_snake/runtime/shard_a/last-step.json",
+        "kind": "runtime",
+        "tracked": false,
+        "exists": true,
+        "notes": "Left shard runtime state"
+      }
+    ],
+    "serviceStatus": [
+      {
+        "name": "web_gateway",
+        "unit": "demo-sharded-snake-gateway.service",
+        "state": "active",
+        "detail": "Listening on 8080"
+      },
+      {
+        "name": "snake_shard_a",
+        "unit": "demo-sharded-snake-shard-a.service",
+        "state": "active",
+        "detail": "Listening on 4101"
+      }
+    ],
+    "roleSummary": "host_a runs the gateway and the left-half authoritative shard in compact mode."
+  },
+  {
+    "hostId": "host_b",
+    "deployedCommit": "7d9e3aa",
+    "intendedCommit": "7d9e3aa",
+    "repoStatus": {
+      "branch": "main",
+      "head": "7d9e3aa",
+      "clean": false,
+      "ahead": 0,
+      "behind": 0,
+      "modified": [
+        "examples/demo_sharded_snake/services/snake_shard/src/main.ts"
+      ],
+      "deleted": [],
+      "untracked": []
+    },
+    "files": [
+      {
+        "path": "examples/demo_sharded_snake/services/snake_shard/src/main.ts",
+        "kind": "drift",
+        "tracked": true,
+        "exists": true,
+        "notes": "Intentional uncommitted logging drift on host_b"
+      },
+      {
+        "path": "examples/demo_sharded_snake/packages/shared_protocol/src/index.ts",
+        "kind": "shared_repo",
+        "tracked": true,
+        "exists": true
+      },
+      {
+        "path": "examples/demo_sharded_snake/deploy/overlays/shard_b/shard.config.json",
+        "kind": "overlay",
+        "tracked": true,
+        "exists": true,
+        "notes": "Right shard overlay differs by role"
+      },
+      {
+        "path": "examples/demo_sharded_snake/runtime/shard_b/last-step.json",
+        "kind": "runtime",
+        "tracked": false,
+        "exists": true,
+        "notes": "Host-only runtime state"
+      }
+    ],
+    "serviceStatus": [
+      {
+        "name": "snake_shard_b",
+        "unit": "demo-sharded-snake-shard-b.service",
+        "state": "active",
+        "detail": "Listening on 4102"
+      }
+    ],
+    "roleSummary": "host_b runs the right-half authoritative shard and intentionally carries a local shared-code drift example."
+  }
+]

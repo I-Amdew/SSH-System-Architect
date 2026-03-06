@@ -1,0 +1,70 @@
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[workspace]
+trusted = true
+default_cwd = "."
+
+[shell]
+env_allowlist = [
+  "REMOTE_INFRA_INVENTORY",
+  "REMOTE_INFRA_SECRET_BACKEND",
+  "REMOTE_INFRA_SECRET_PREFIX",
+  "REMOTE_INFRA_ALLOW_PASSWORD_AUTH",
+  "REMOTE_INFRA_TRANSPORT",
+  "SSH_CONFIG_FILE",
+  "SSH_AUTH_SOCK",
+  "HOME",
+  "USERPROFILE",
+  "APPDATA"
+]
+
+[mcp_servers.remote_infra]
+command = "node"
+args = [
+  "packages/remote-infra-mcp/src/main.ts",
+  "--inventory",
+  "${REMOTE_INFRA_INVENTORY}",
+  "--index-root",
+  ".infra-index"
+]
+cwd = "."
+env_forward = [
+  "REMOTE_INFRA_INVENTORY",
+  "REMOTE_INFRA_SECRET_BACKEND",
+  "REMOTE_INFRA_SECRET_PREFIX",
+  "REMOTE_INFRA_ALLOW_PASSWORD_AUTH",
+  "REMOTE_INFRA_TRANSPORT",
+  "SSH_CONFIG_FILE",
+  "SSH_AUTH_SOCK",
+  "HOME",
+  "USERPROFILE",
+  "APPDATA"
+]
+
+[mcp_servers.remote_infra.env]
+REMOTE_INFRA_INVENTORY = "lab/ssh_cluster/inventory.compact.yml"
+REMOTE_INFRA_SECRET_BACKEND = "auto"
+REMOTE_INFRA_SECRET_PREFIX = "SSH_SYSTEM_ARCHITECT"
+REMOTE_INFRA_ALLOW_PASSWORD_AUTH = "0"
+REMOTE_INFRA_TRANSPORT = "ssh"
+
+[remote_infra]
+inventory = "lab/ssh_cluster/inventory.compact.yml"
+index_root = ".infra-index"
+ssh_client = "openssh"
+secret_backends = [
+  "ssh-agent",
+  "keychain",
+  "wincred",
+  "env"
+]
+repo_discovery_scan_roots = [
+  "/srv",
+  "/opt/services"
+]
+secret_examples = [
+  "env:SSH_SYSTEM_ARCHITECT_HOST_A_PASSWORD",
+  "keychain:ssh-system-architect/host_a",
+  "wincred:ssh-system-architect/host_a"
+]

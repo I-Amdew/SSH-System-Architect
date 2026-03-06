@@ -1,0 +1,47 @@
+[
+  {
+    "id": "patch-across-two-hosts",
+    "prompt": "Patch the remote snake shard service across two SSH hosts and restart only the affected services.",
+    "expectTrigger": true,
+    "expectInventoryFirst": true,
+    "expectMcpPreferred": true,
+    "expectRefreshIndexes": true,
+    "expectHostByHostReport": true
+  },
+  {
+    "id": "explain-role",
+    "prompt": "Explain what host_b is supposed to do and which files are shared versus host-specific.",
+    "expectTrigger": true,
+    "expectInventoryFirst": true,
+    "expectMcpPreferred": true,
+    "expectRefreshIndexes": false,
+    "expectHostByHostReport": true
+  },
+  {
+    "id": "inspect-drift",
+    "prompt": "Refresh the infra index and tell me whether host_b drift is shared source or runtime noise.",
+    "expectTrigger": true,
+    "expectInventoryFirst": true,
+    "expectMcpPreferred": true,
+    "expectRefreshIndexes": true,
+    "expectHostByHostReport": true
+  },
+  {
+    "id": "cluster-diagnostics",
+    "prompt": "Diagnose why the shard cluster is half down over SSH and report which hosts in the cluster are still healthy.",
+    "expectTrigger": true,
+    "expectInventoryFirst": true,
+    "expectMcpPreferred": true,
+    "expectRefreshIndexes": false,
+    "expectHostByHostReport": true
+  },
+  {
+    "id": "generic-local-task",
+    "prompt": "Refactor the local React component in src/App.tsx.",
+    "expectTrigger": false,
+    "expectInventoryFirst": false,
+    "expectMcpPreferred": false,
+    "expectRefreshIndexes": false,
+    "expectHostByHostReport": false
+  }
+]
