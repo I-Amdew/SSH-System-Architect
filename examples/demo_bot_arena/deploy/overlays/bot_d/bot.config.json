@@ -1,0 +1,9 @@
+{
+  "id": "bot_d",
+  "name": "Dusk",
+  "color": "#247ba0",
+  "listenPort": 5104,
+  "runtimeDir": "examples/demo_bot_arena/runtime/bot_d",
+  "strategy": "chaotic",
+  "seed": 11
+}

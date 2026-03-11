@@ -1,6 +1,9 @@
-export type Direction = "up" | "down" | "left" | "right";
-
 export interface Position {
+  x: number;
+  y: number;
+}
+
+export interface Velocity {
   x: number;
   y: number;
 }
@@ -20,7 +23,6 @@ export interface ShardDescriptor {
 
 export interface GatewayConfig {
   listenPort: number;
-  tickMs: number;
   runtimeDir: string;
   board: BoardConfig;
   shards: ShardDescriptor[];
@@ -36,11 +38,7 @@ export interface ShardConfig {
 }
 
 export interface StepRequest {
-  sessionId: string;
-  tick: number;
-  board: BoardConfig;
-  head: Position;
-  direction: Direction;
+  target: Position;
 }
 
 export interface HandoffEvent {
@@ -61,10 +59,12 @@ export interface StepResponse {
 
 export interface GameState {
   tick: number;
-  length: number;
-  direction: Direction;
+  score: number;
   owner: string;
   snake: Position[];
+  orbs: Position[];
+  target: Position;
+  velocity: Velocity;
   handoffs: HandoffEvent[];
 }
 
@@ -79,45 +79,58 @@ export type GatewayEvent =
       handoff: HandoffEvent;
     };
 
-export function nextPosition(head: Position, direction: Direction, board: BoardConfig): Position {
-  switch (direction) {
-    case "up":
-      return { x: head.x, y: (head.y - 1 + board.height) % board.height };
-    case "down":
-      return { x: head.x, y: (head.y + 1) % board.height };
-    case "left":
-      return { x: (head.x - 1 + board.width) % board.width, y: head.y };
-    case "right":
-      return { x: (head.x + 1) % board.width, y: head.y };
-  }
+export function wrapPosition(position: Position, board: BoardConfig): Position {
+  return {
+    x: (position.x + board.width) % board.width,
+    y: (position.y + board.height) % board.height
+  };
 }
 
 export function createInitialState(board: BoardConfig, owner: string): GameState {
   return {
     tick: 0,
-    length: 5,
-    direction: "right",
+    score: 0,
     owner,
     snake: [
+      { x: 5, y: Math.floor(board.height / 2) },
+      { x: 4, y: Math.floor(board.height / 2) },
+      { x: 3, y: Math.floor(board.height / 2) },
       { x: 2, y: Math.floor(board.height / 2) },
-      { x: 1, y: Math.floor(board.height / 2) },
-      { x: 0, y: Math.floor(board.height / 2) },
-      { x: board.width - 1, y: Math.floor(board.height / 2) },
-      { x: board.width - 2, y: Math.floor(board.height / 2) }
+      { x: 1, y: Math.floor(board.height / 2) }
     ],
+    orbs: [],
+    target: { x: board.width - 4, y: Math.floor(board.height / 2) },
+    velocity: { x: 1, y: 0 },
     handoffs: []
   };
 }
 
-export function isOppositeDirection(current: Direction, next: Direction): boolean {
-  return (
-    (current === "up" && next === "down") ||
-    (current === "down" && next === "up") ||
-    (current === "left" && next === "right") ||
-    (current === "right" && next === "left")
-  );
+export function positionsEqual(left: Position, right: Position): boolean {
+  return left.x === right.x && left.y === right.y;
 }
 
 export function ownsColumn(ownedColumns: [number, number], x: number): boolean {
   return x >= ownedColumns[0] && x <= ownedColumns[1];
+}
+
+export function directionToward(head: Position, target: Position): Velocity {
+  const deltaX = target.x - head.x;
+  const deltaY = target.y - head.y;
+  if (Math.abs(deltaX) >= Math.abs(deltaY) && deltaX !== 0) {
+    return { x: Math.sign(deltaX), y: 0 };
+  }
+  if (deltaY !== 0) {
+    return { x: 0, y: Math.sign(deltaY) };
+  }
+  return { x: 1, y: 0 };
+}
+
+export function nextPosition(head: Position, velocity: Velocity, board: BoardConfig): Position {
+  return wrapPosition(
+    {
+      x: head.x + velocity.x,
+      y: head.y + velocity.y
+    },
+    board
+  );
 }

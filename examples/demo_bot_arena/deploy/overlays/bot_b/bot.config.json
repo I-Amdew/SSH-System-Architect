@@ -1,0 +1,9 @@
+{
+  "id": "bot_b",
+  "name": "Beryl",
+  "color": "#ffe066",
+  "listenPort": 5102,
+  "runtimeDir": "examples/demo_bot_arena/runtime/bot_b",
+  "strategy": "ambush",
+  "seed": 5
+}

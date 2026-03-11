@@ -48,11 +48,14 @@ REMOTE_INFRA_SECRET_BACKEND = "auto"
 REMOTE_INFRA_SECRET_PREFIX = "SSH_SYSTEM_ARCHITECT"
 REMOTE_INFRA_ALLOW_PASSWORD_AUTH = "0"
 REMOTE_INFRA_TRANSPORT = "ssh"
+REMOTE_INFRA_PREFER_INSPECT_SYSTEM = "1"
 
 [remote_infra]
 inventory = "lab/ssh_cluster/inventory.compact.yml"
 index_root = ".infra-index"
 ssh_client = "openssh"
+# Preferred first call for real systems:
+# inspect_system -> explain_host_role/explain_cluster -> patch/restart -> refresh or inspect again
 # Remote hosts are modeled per inventory entry. The demo inventories assume
 # root-capable managed hosts via sudo-capable admin users.
 secret_backends = [

@@ -1,0 +1,40 @@
+{
+  "listenPort": 8090,
+  "runtimeDir": "examples/demo_bot_arena/runtime/coordinator",
+  "arena": {
+    "width": 24,
+    "height": 14,
+    "maxTicks": 240,
+    "tickMs": 160
+  },
+  "bots": [
+    {
+      "id": "bot_a",
+      "name": "Amber",
+      "color": "#f25f5c",
+      "endpoint": "http://127.0.0.1:5101",
+      "hostTag": "bot_host_a"
+    },
+    {
+      "id": "bot_b",
+      "name": "Beryl",
+      "color": "#ffe066",
+      "endpoint": "http://127.0.0.1:5102",
+      "hostTag": "bot_host_b"
+    },
+    {
+      "id": "bot_c",
+      "name": "Cinder",
+      "color": "#70c1b3",
+      "endpoint": "http://127.0.0.1:5103",
+      "hostTag": "bot_host_c"
+    },
+    {
+      "id": "bot_d",
+      "name": "Dusk",
+      "color": "#247ba0",
+      "endpoint": "http://127.0.0.1:5104",
+      "hostTag": "bot_host_d"
+    }
+  ]
+}

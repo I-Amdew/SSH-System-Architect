@@ -1,7 +1,16 @@
 import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { GenerateIndexOptions, HostDefinition, HostFileEntry, HostSnapshot, Inventory, TopologySummary } from "../../remote-infra-types/src/index.ts";
+import type {
+  ConnectivityCheckResult,
+  GenerateIndexOptions,
+  HostDefinition,
+  HostFileEntry,
+  HostSnapshot,
+  Inventory,
+  RepoDiscoveryResult,
+  TopologySummary
+} from "../../remote-infra-types/src/index.ts";
 import { compareHostSnapshot, relativeOutputPath } from "./classification.ts";
 
 function markdownList(items: string[]): string {
@@ -31,8 +40,12 @@ async function writeMarkdown(targetPath: string, content: string): Promise<void>
 function summarizeTopology(inventory: Inventory): TopologySummary {
   const gatewayHosts = inventory.hosts.filter((host) => host.roleLabels.includes("gateway")).length;
   const shardHosts = inventory.hosts.filter((host) => host.roleLabels.some((role) => role.startsWith("shard"))).length;
+  const coordinatorHosts = inventory.hosts.filter((host) => host.roleLabels.includes("coordinator")).length;
+  const botHosts = inventory.hosts.filter((host) => host.roleLabels.includes("bot_runner")).length;
   const topology =
-    gatewayHosts === 1 && shardHosts === 2
+    coordinatorHosts === 1 && botHosts === 4
+      ? "coordinator + 4 bot hosts"
+      : inventory.hosts.length === 3 && gatewayHosts === 1 && shardHosts === 2
       ? "optional 3-host mode"
       : "compact 2-host mode";
 
@@ -127,6 +140,49 @@ function renderFileGroup(title: string, entries: HostFileEntry[]): string {
   ].join("\n");
 }
 
+function renderHealthStatus(status?: ConnectivityCheckResult): string {
+  if (!status) {
+    return "No health snapshot recorded.";
+  }
+  return [
+    `- SSH reachable: \`${status.sshReachable}\``,
+    `- Repo reachable: \`${status.repoReachable}\``,
+    status.deployedCommit ? `- Reported deployed commit: \`${status.deployedCommit}\`` : "",
+    "",
+    "## Health checks",
+    markdownList(
+      status.healthChecks.map((entry) => `\`${entry.name}\`: ${entry.state}${entry.detail ? ` (${entry.detail})` : ""}`)
+    ),
+    "",
+    "## Notes",
+    markdownList(status.notes)
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function renderDiscoveredRepos(discovery?: RepoDiscoveryResult): string {
+  if (!discovery) {
+    return "# Discovered Repos\n\nNo discovery snapshot recorded.";
+  }
+  return [
+    "# Discovered Repos",
+    "",
+    "## Scan roots",
+    markdownList(discovery.scanRoots.map((entry) => `\`${entry}\``)),
+    "",
+    "## Repos",
+    markdownList(
+      discovery.repos.map(
+        (repo) =>
+          `\`${repo.path}\`${repo.remote ? ` -> ${repo.remote}` : ""}${repo.branch ? ` [${repo.branch}]` : ""}${
+            repo.matchedInventory ? " (inventory)" : ""
+          }`
+      )
+    )
+  ].join("\n");
+}
+
 function buildTreeMap(entries: HostFileEntry[]): Map<string, HostFileEntry[]> {
   const folders = new Map<string, HostFileEntry[]>();
   for (const entry of entries) {
@@ -184,21 +240,45 @@ export async function generateInfraIndex(
   await ensureDirectory(outputRoot);
 
   const topology = summarizeTopology(inventory);
+  const inspection = options.inspection;
+  const networkHealthByHost = new Map(
+    (inspection?.networkHealth?.results ?? []).map((entry) => [entry.hostId, entry] as const)
+  );
+  const repoDiscoveryByHost = new Map(
+    (inspection?.repoDiscovery ?? []).map((entry) => [entry.hostId, entry] as const)
+  );
+  const comparisonByHost = new Map(
+    (inspection?.comparisons ?? []).map((entry) => [entry.hostId, entry] as const)
+  );
+  const hostSnapshotsById = new Map(hostSnapshots.map((snapshot) => [snapshot.hostId, snapshot] as const));
+  const dirtyHosts = hostSnapshots.filter((snapshot) => !snapshot.repoStatus.clean).map((snapshot) => `\`${snapshot.hostId}\``);
+  const degradedHosts = (inspection?.networkHealth?.results ?? [])
+    .filter((result) => !result.sshReachable || !result.repoReachable || result.healthChecks.some((check) => check.state === "failed"))
+    .map((result) => `\`${result.hostId}\``);
 
   await writeMarkdown(
     path.join(outputRoot, "system-overview.md"),
     [
       "# System Overview",
       "",
+      inspection?.generatedAt ? `- Generated at: \`${inspection.generatedAt}\`` : "",
       `- Repo: \`${inventory.repo.name}\``,
       `- Git remote: \`${inventory.repo.gitRemote}\``,
       `- Intended commit: \`${inventory.repo.intendedCommit}\``,
       `- Topology mode: \`${topology.topology}\``,
+      `- Dirty hosts: ${dirtyHosts.length > 0 ? dirtyHosts.join(", ") : "none"}`,
+      `- Degraded hosts: ${degradedHosts.length > 0 ? degradedHosts.join(", ") : "none"}`,
       "",
       "## Hosts",
       markdownList(
         topology.hosts.map(
-          (host) => `\`${host.hostId}\`: roles=${host.roles.join(", ")}, services=${host.services.join(", ")}`
+          (host) => {
+            const snapshot = hostSnapshotsById.get(host.hostId);
+            const health = networkHealthByHost.get(host.hostId);
+            return `\`${host.hostId}\`: roles=${host.roles.join(", ")}, services=${host.services.join(
+              ", "
+            )}, clean=${snapshot?.repoStatus.clean ?? "unknown"}, ssh=${health?.sshReachable ?? "unknown"}`;
+          }
         )
       ),
       "",
@@ -221,7 +301,9 @@ export async function generateInfraIndex(
           (adapter) => `\`${adapter.id}\`: ${adapter.kind} (${adapter.scope}) enabled=${adapter.enabled}`
         )
       )
-    ].join("\n")
+    ]
+      .filter(Boolean)
+      .join("\n")
   );
 
   await writeMarkdown(
@@ -248,13 +330,19 @@ export async function generateInfraIndex(
     [
       "# Network Health Intent",
       "",
-      "This file records the intended diagnostic surface for the inventory.",
+      inspection?.networkHealth
+        ? "This file records the latest collected diagnostic surface for the inventory."
+        : "This file records the intended diagnostic surface for the inventory.",
       "",
       "## Hosts",
       markdownList(
         inventory.hosts.map(
-          (host) =>
-            `\`${host.id}\`: OpenSSH=${host.sshImplementation}, zone=${host.networkZone ?? "unspecified"}, scopes=${host.managedScopes.join(", ")}`
+          (host) => {
+            const health = networkHealthByHost.get(host.id);
+            return `\`${host.id}\`: OpenSSH=${host.sshImplementation}, zone=${host.networkZone ?? "unspecified"}, scopes=${host.managedScopes.join(
+              ", "
+            )}, ssh=${health?.sshReachable ?? "unknown"}, repo=${health?.repoReachable ?? "unknown"}`;
+          }
         )
       )
     ].join("\n")
@@ -287,7 +375,9 @@ export async function generateInfraIndex(
       continue;
     }
     const hostRoot = path.join(outputRoot, "hosts", host.id);
-    const comparison = compareHostSnapshot(snapshot);
+    const comparison = comparisonByHost.get(host.id) ?? compareHostSnapshot(snapshot);
+    const hostHealth = networkHealthByHost.get(host.id);
+    const hostDiscovery = repoDiscoveryByHost.get(host.id);
 
     await writeMarkdown(
       path.join(hostRoot, "host.md"),
@@ -295,6 +385,8 @@ export async function generateInfraIndex(
         `# Host: ${host.id}`,
         "",
         `- SSH target: \`${host.sshUser}@${host.hostname}:${host.port}\``,
+        host.sshHostAlias ? `- SSH alias: \`${host.sshHostAlias}\`` : "",
+        `- Repo path: \`${host.repoPath}\``,
         `- Roles: \`${host.roleLabels.join(", ")}\``,
         `- Clusters: \`${host.clusterIds.join(", ")}\``,
         `- Network zone: \`${host.networkZone ?? "unspecified"}\``,
@@ -303,8 +395,18 @@ export async function generateInfraIndex(
         `- Root allowed: \`${host.rootAllowed}\``,
         `- Mutable: \`${host.mutable}\``,
         `- Deletion protected: \`${host.deletionProtected}\``,
-        snapshot.roleSummary ? `- Role summary: ${snapshot.roleSummary}` : ""
-      ].filter(Boolean).join("\n")
+        snapshot.roleSummary ? `- Role summary: ${snapshot.roleSummary}` : "",
+        "",
+        "## Service status",
+        markdownList(
+          snapshot.serviceStatus.map((service) => `\`${service.name}\` -> ${service.state}${service.detail ? ` (${service.detail})` : ""}`)
+        ),
+        "",
+        "## Latest diagnostics",
+        renderHealthStatus(hostHealth)
+      ]
+        .filter(Boolean)
+        .join("\n")
     );
 
     await writeMarkdown(
@@ -327,12 +429,17 @@ export async function generateInfraIndex(
           )
         ),
         "",
+        "## Services",
+        markdownList(host.services.map((service) => `\`${service.name}\` -> ${service.unit} (${service.manager})`)),
+        "",
         "## Health checks",
         markdownList(host.healthChecks.map((check) => `\`${check.name}\` -> ${check.kind} ${check.target}`))
       ].join("\n")
     );
 
     await writeMarkdown(path.join(hostRoot, "repo_status.md"), renderRepoStatus(snapshot));
+    await writeMarkdown(path.join(hostRoot, "health.md"), `# Health: ${host.id}\n\n${renderHealthStatus(hostHealth)}`);
+    await writeMarkdown(path.join(hostRoot, "discovered_repos.md"), renderDiscoveredRepos(hostDiscovery));
     await writeMarkdown(path.join(hostRoot, "overlay.md"), renderFileGroup("Overlay Files", comparison.overlays));
     await writeMarkdown(path.join(hostRoot, "runtime.md"), renderFileGroup("Runtime Files", comparison.runtimeOnly));
     await writeMarkdown(path.join(hostRoot, "drift.md"), renderFileGroup("Drift", comparison.drift));

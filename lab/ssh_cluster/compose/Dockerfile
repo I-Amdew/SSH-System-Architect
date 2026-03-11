@@ -1,7 +1,7 @@
 FROM ubuntu:24.04
 
 RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server git nodejs npm sudo \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y curl openssh-server git nodejs npm sudo \
   && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --shell /bin/bash codex \

@@ -246,6 +246,7 @@ function parseHost(value: unknown, index: number): HostDefinition {
       readKey(record, "ssh_implementation", "sshImplementation") ?? "openssh",
       `hosts[${index}].ssh_implementation`
     ) as HostDefinition["sshImplementation"],
+    sshHostAlias: asOptionalString(readKey(record, "ssh_host_alias", "sshHostAlias"), `hosts[${index}].ssh_host_alias`),
     sshOptions: asStringArray(readKey(record, "ssh_options", "sshOptions") ?? [], `hosts[${index}].ssh_options`),
     authMode: asString(readKey(record, "auth_mode", "authMode"), `hosts[${index}].auth_mode`) as HostDefinition["authMode"],
     secretRef: asOptionalString(readKey(record, "secret_ref", "secretRef"), `hosts[${index}].secret_ref`),

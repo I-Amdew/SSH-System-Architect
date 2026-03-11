@@ -160,6 +160,11 @@ export class RemoteInfraMcpServer {
         return this.orchestrator.explainCluster(String(args.clusterId));
       case "list_vm_adapters":
         return this.orchestrator.listVmAdapters();
+      case "import_ssh_config_hosts":
+        return this.orchestrator.importSshConfigHosts(
+          args.configPath ? String(args.configPath) : undefined,
+          (args.aliases as string[]) ?? undefined
+        );
       case "explain_host_role":
         return this.orchestrator.explainHostRole(String(args.hostId));
       case "read_remote_file":
@@ -237,6 +242,15 @@ export class RemoteInfraMcpServer {
           (args.hostIds as string[]) ?? undefined,
           args.clusterId ? String(args.clusterId) : undefined
         );
+      case "inspect_system":
+        return this.orchestrator.inspectSystem({
+          outputRoot: args.outputRoot ? String(args.outputRoot) : undefined,
+          exhaustiveFiles: args.exhaustiveFiles === undefined ? undefined : Boolean(args.exhaustiveFiles),
+          hostIds: (args.hostIds as string[]) ?? undefined,
+          clusterId: args.clusterId ? String(args.clusterId) : undefined,
+          refreshIndexes: args.refreshIndexes === undefined ? undefined : Boolean(args.refreshIndexes),
+          includeRepoDiscovery: args.includeRepoDiscovery === undefined ? undefined : Boolean(args.includeRepoDiscovery)
+        });
       case "diagnose_host_connectivity":
         return this.orchestrator.diagnoseHostConnectivity(String(args.hostId));
       case "report_network_health":

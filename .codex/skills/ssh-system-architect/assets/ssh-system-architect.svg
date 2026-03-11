@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SSH System Architect">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#16212c"/>
+      <stop offset="100%" stop-color="#0b1220"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="88" fill="url(#bg)"/>
+  <circle cx="414" cy="116" r="62" fill="#111827" stroke="#f59e0b" stroke-width="14"/>
+  <path d="M387 116h54M414 89v54" stroke="#f59e0b" stroke-width="16" stroke-linecap="round"/>
+  <rect x="88" y="134" width="272" height="180" rx="24" fill="url(#screen)" stroke="#4cc9f0" stroke-width="14"/>
+  <path d="M142 224l52-40v80z" fill="#4cc9f0"/>
+  <path d="M244 262h82" stroke="#a7f3d0" stroke-width="18" stroke-linecap="round"/>
+  <path d="M118 356h212" stroke="#f8fafc" stroke-opacity=".24" stroke-width="12" stroke-linecap="round"/>
+  <path d="M120 384h150" stroke="#f8fafc" stroke-opacity=".16" stroke-width="12" stroke-linecap="round"/>
+  <path d="M154 106c34-24 82-34 130-22" stroke="#38bdf8" stroke-opacity=".34" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <path d="M392 314c-20 44-60 82-116 104" stroke="#34d399" stroke-opacity=".3" stroke-width="12" fill="none" stroke-linecap="round"/>
+</svg>

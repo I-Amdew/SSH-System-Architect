@@ -11,11 +11,13 @@ import type {
   RepoDiscoveryResult,
   RemoteFileWriteResult,
   StructuredPatchOperation,
+  SystemInspectionResult,
   TopologySummary
 } from "../../remote-infra-types/src/index.ts";
 import { compareHostSnapshot } from "./classification.ts";
 import { generateInfraIndex } from "./indexer.ts";
 import { applyStructuredPatch } from "./patch.ts";
+import { importSshConfig } from "./ssh-config.ts";
 import type { RemoteTransport } from "./transport.ts";
 
 const ALLOWED_COMMANDS = new Set([
@@ -64,6 +66,7 @@ export class RemoteInfraOrchestrator {
     return this.inventory.hosts.map((host) => ({
       id: host.id,
       hostname: host.hostname,
+      sshHostAlias: host.sshHostAlias,
       port: host.port,
       sshUser: host.sshUser,
       roles: host.roleLabels,
@@ -106,10 +109,12 @@ export class RemoteInfraOrchestrator {
         supportsRepoDiscovery: true,
         supportsBootstrapHost: true,
         supportsClusterActions: true,
+        supportsSystemInspection: true,
         supportsIndexRefresh: true,
         destructiveToolsEnabled: this.options.allowDestructiveTools && this.inventory.safety.destructiveToolsEnabled
       },
       routineTools: [
+        "inspect_system",
         "list_hosts",
         "list_clusters",
         "explain_host_role",
@@ -180,6 +185,7 @@ export class RemoteInfraOrchestrator {
       clusters: host.clusterIds,
       networkZone: host.networkZone,
       sshImplementation: host.sshImplementation,
+      sshHostAlias: host.sshHostAlias,
       sshOptions: host.sshOptions,
       repoPath: host.repoPath,
       existingRepos: host.existingRepos,
@@ -196,91 +202,17 @@ export class RemoteInfraOrchestrator {
     return this.inventory.vmAdapters;
   }
 
-  async bootstrapHost(
-    hostId: string,
-    options?: {
-      repositoryUrl?: string;
-      branch?: string;
-      createRuntimeDirs?: boolean;
-      createOverlayDirs?: boolean;
-      reason?: string;
+  async importSshConfigHosts(configPath?: string, aliases?: string[]) {
+    const defaultConfigPath =
+      process.env.SSH_CONFIG_FILE ||
+      (process.platform === "win32"
+        ? path.join(process.env.USERPROFILE ?? "", ".ssh", "config")
+        : path.join(process.env.HOME ?? "", ".ssh", "config"));
+    const resolvedConfigPath = configPath || defaultConfigPath;
+    if (!resolvedConfigPath) {
+      throw new Error("No SSH config path provided and no SSH_CONFIG_FILE or home directory is available");
     }
-  ) {
-    const host = this.getHost(hostId);
-    if (!host.mutable) {
-      throw new Error(`Host ${hostId} is marked immutable and cannot be bootstrapped`);
-    }
-
-    const repositoryUrl = options?.repositoryUrl ?? this.inventory.repo.gitRemote;
-    const branch = options?.branch ?? this.inventory.repo.defaultBranch;
-    const requiresPrivilege = host.privilegeMode !== "none";
-    const createdDirectories: string[] = [];
-    const notes: string[] = [];
-
-    const repoParent = path.posix.dirname(host.repoPath);
-    await this.runRemoteCommand(hostId, {
-      argv: ["mkdir", "-p", repoParent],
-      requiresPrivilege,
-      reason: options?.reason ?? "Prepare repo parent directory"
-    });
-
-    const repoProbe = await this.runRemoteCommand(hostId, {
-      argv: ["git", "-C", host.repoPath, "rev-parse", "--is-inside-work-tree"]
-    });
-
-    let clonedRepo = false;
-    if (repoProbe.code !== 0) {
-      const cloneResult = await this.runRemoteCommand(hostId, {
-        argv: ["git", "clone", "--branch", branch, repositoryUrl, host.repoPath],
-        requiresPrivilege,
-        reason: options?.reason ?? "Clone managed repo during host bootstrap"
-      });
-      if (cloneResult.code !== 0) {
-        throw new Error(cloneResult.stderr.trim() || `Unable to clone ${repositoryUrl} onto ${hostId}`);
-      }
-      clonedRepo = true;
-      notes.push(`Cloned ${repositoryUrl} into ${host.repoPath}`);
-    } else {
-      notes.push(`Repo already present at ${host.repoPath}`);
-    }
-
-    const targetDirs = new Set<string>();
-    if (options?.createRuntimeDirs !== false) {
-      for (const runtimePath of host.runtimePaths) {
-        targetDirs.add(runtimePath.startsWith("/") ? runtimePath : path.posix.join(host.repoPath, runtimePath));
-      }
-    }
-    if (options?.createOverlayDirs === true) {
-      for (const overlayPath of host.overlayPaths) {
-        if (overlayPath.startsWith("/")) {
-          targetDirs.add(overlayPath);
-        }
-      }
-    }
-
-    for (const targetDir of targetDirs) {
-      const result = await this.runRemoteCommand(hostId, {
-        argv: ["mkdir", "-p", targetDir],
-        requiresPrivilege,
-        reason: options?.reason ?? "Prepare managed directories during host bootstrap"
-      });
-      if (result.code !== 0) {
-        throw new Error(result.stderr.trim() || `Unable to create directory ${targetDir} on ${hostId}`);
-      }
-      createdDirectories.push(targetDir);
-    }
-
-    return {
-      hostId,
-      repoPath: host.repoPath,
-      repositoryUrl,
-      branch,
-      privilegeMode: host.privilegeMode,
-      rootAllowed: host.rootAllowed,
-      clonedRepo,
-      createdDirectories,
-      notes
-    };
+    return importSshConfig(resolvedConfigPath, aliases);
   }
 
   async bootstrapHost(
@@ -401,7 +333,9 @@ export class RemoteInfraOrchestrator {
 
   private validateCommand(request: CommandRequest): void {
     const [binary, ...rest] = request.argv;
-    if (!binary || !ALLOWED_COMMANDS.has(binary)) {
+    const normalizedBinary = binary?.replace(/\\/gu, "/");
+    const binaryName = normalizedBinary ? normalizedBinary.split("/").pop() ?? normalizedBinary : "";
+    if (!binary || (!ALLOWED_COMMANDS.has(binary) && !ALLOWED_COMMANDS.has(binaryName))) {
       throw new Error(`Command ${binary ?? "<empty>"} is not allowed by the constrained remote command policy`);
     }
     const allTokens = [binary, ...rest].join(" ");
@@ -459,12 +393,22 @@ export class RemoteInfraOrchestrator {
     const host = this.getHost(hostId);
     const targets = serviceName ? host.services.filter((service) => service.name === serviceName) : host.services;
     return Promise.all(
-      targets.map((service) =>
-        this.runRemoteCommand(hostId, {
+      targets.map((service) => {
+        if (service.manager !== "systemd") {
+          return Promise.resolve({
+            code: 0,
+            stdout:
+              service.manager === "none"
+                ? "No service manager configured; rely on health checks or explicit launch tooling."
+                : `Service manager ${service.manager} is not implemented by the constrained OpenSSH workflow yet.`,
+            stderr: ""
+          });
+        }
+        return this.runRemoteCommand(hostId, {
           argv: ["systemctl", "status", service.unit, "--no-pager"],
           requiresPrivilege: service.restartRequiresPrivilege ?? false
-        })
-      )
+        });
+      })
     );
   }
 
@@ -473,6 +417,13 @@ export class RemoteInfraOrchestrator {
     const service = host.services.find((entry) => entry.name === serviceName);
     if (!service) {
       throw new Error(`Unknown service ${serviceName} on ${hostId}`);
+    }
+    if (service.manager !== "systemd") {
+      throw new Error(
+        service.manager === "none"
+          ? `Service ${serviceName} on ${hostId} does not declare a service manager; use explicit launch tooling for this host`
+          : `Service manager ${service.manager} is not implemented for restart_service`
+      );
     }
     const result = await this.runRemoteCommand(hostId, {
       argv: ["systemctl", "restart", service.unit],
@@ -492,6 +443,13 @@ export class RemoteInfraOrchestrator {
     const service = host.services.find((entry) => entry.name === serviceName);
     if (!service) {
       throw new Error(`Unknown service ${serviceName} on ${hostId}`);
+    }
+    if (service.manager !== "systemd") {
+      throw new Error(
+        service.manager === "none"
+          ? `Service ${serviceName} on ${hostId} does not declare a service manager; use its logHint or runtime files instead`
+          : `Service manager ${service.manager} is not implemented for tail_service_logs`
+      );
     }
     return this.runRemoteCommand(hostId, {
       argv: ["journalctl", "-u", service.unit, "-n", String(lines), "--no-pager"],
@@ -664,8 +622,17 @@ export class RemoteInfraOrchestrator {
 
   generateTopologySummary(): TopologySummary {
     const gatewayHosts = this.inventory.hosts.filter((host) => host.roleLabels.includes("gateway")).length;
+    const shardHosts = this.inventory.hosts.filter((host) => host.roleLabels.some((role) => role.startsWith("shard"))).length;
+    const coordinatorHosts = this.inventory.hosts.filter((host) => host.roleLabels.includes("coordinator")).length;
+    const botHosts = this.inventory.hosts.filter((host) => host.roleLabels.includes("bot_runner")).length;
+    const topology =
+      coordinatorHosts === 1 && botHosts === 4
+        ? "coordinator + 4 bot hosts"
+        : this.inventory.hosts.length === 3 && gatewayHosts === 1 && shardHosts === 2
+        ? "optional 3-host mode"
+        : "compact 2-host mode";
     return {
-      topology: gatewayHosts === 1 ? "compact 2-host mode" : "optional 3-host mode",
+      topology,
       hosts: this.inventory.hosts.map((host) => ({
         hostId: host.id,
         roles: host.roleLabels,
@@ -699,6 +666,82 @@ export class RemoteInfraOrchestrator {
   async compareState(hostId: string): Promise<HostComparison> {
     const snapshot = (await this.reportRepoState([hostId]))[0];
     return compareHostSnapshot(snapshot);
+  }
+
+  async inspectSystem(options?: {
+    outputRoot?: string;
+    exhaustiveFiles?: boolean;
+    hostIds?: string[];
+    clusterId?: string;
+    refreshIndexes?: boolean;
+    includeRepoDiscovery?: boolean;
+  }): Promise<SystemInspectionResult> {
+    const hosts = this.resolveHosts(options?.hostIds, options?.clusterId);
+    const hostIds = hosts.map((host) => host.id);
+    const repoStates = await this.reportRepoState(hostIds);
+    const comparisons = repoStates.map((snapshot) => compareHostSnapshot(snapshot));
+    const networkHealth = await this.reportNetworkHealth(options?.clusterId, options?.hostIds ?? hostIds);
+    const repoDiscovery =
+      options?.includeRepoDiscovery === false
+        ? []
+        : await Promise.all(hosts.map((host) => this.discoverHostRepos(host.id)));
+    const topology = this.generateTopologySummary();
+    const generatedAt = new Date().toISOString();
+
+    let indexes: SystemInspectionResult["indexes"];
+    if (options?.refreshIndexes !== false) {
+      const outputRoot = path.join(this.options.workspaceRoot, ".infra-index");
+      const requestedOutputRoot = options?.outputRoot ? path.resolve(options.outputRoot) : outputRoot;
+      await generateInfraIndex(this.inventory, repoStates, {
+        outputRoot: requestedOutputRoot,
+        workspaceRoot: this.options.workspaceRoot,
+        exhaustiveFiles: options?.exhaustiveFiles,
+        inspection: {
+          generatedAt,
+          topology,
+          networkHealth,
+          repoDiscovery,
+          comparisons
+        }
+      });
+      indexes = {
+        outputRoot: requestedOutputRoot,
+        hosts: repoStates.map((snapshot) => ({
+          hostId: snapshot.hostId,
+          clean: snapshot.repoStatus.clean,
+          deployedCommit: snapshot.deployedCommit,
+          intendedCommit: snapshot.intendedCommit
+        }))
+      };
+    }
+
+    return {
+      generatedAt,
+      clusterId: options?.clusterId,
+      hostIds,
+      topology,
+      hostRoles: hosts.map((host) => {
+        const explained = this.explainHostRole(host.id);
+        return {
+          hostId: host.id,
+          roles: explained.roles,
+          clusters: explained.clusters,
+          sshImplementation: explained.sshImplementation,
+          sshHostAlias: explained.sshHostAlias,
+          managedScopes: explained.managedScopes,
+          services: explained.services.map((service) => service.name),
+          overlays: explained.overlays,
+          runtimePaths: explained.runtimePaths,
+          existingRepos: explained.existingRepos,
+          intent: explained.intent
+        };
+      }),
+      repoStates,
+      comparisons,
+      networkHealth,
+      repoDiscovery,
+      indexes
+    };
   }
 
   async refreshIndexes(

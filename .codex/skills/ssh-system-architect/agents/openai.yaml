@@ -1,0 +1,6 @@
+interface:
+  display_name: "SSH System Architect"
+  short_description: "Operate whole SSH-backed systems through MCP"
+  icon_small: "./assets/ssh-system-architect-small.svg"
+  icon_large: "./assets/ssh-system-architect.svg"
+  default_prompt: "Use SSH System Architect to inspect the target system first, work through MCP-backed SSH/Git/service tools, refresh indexes, and report exact host-by-host outcomes."

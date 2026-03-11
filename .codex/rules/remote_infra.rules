@@ -1,6 +1,6 @@
 [rule]
-name = "prefer-mcp-for-remote-infra"
-action = "prompt"
+name = "block-ad-hoc-remote-shell-when-mcp-exists"
+action = "block"
 match = [
   "ssh ",
   "scp ",
@@ -9,7 +9,7 @@ match = [
   "kubectl exec ",
   "powershell Enter-PSSession"
 ]
-reason = "Use remote-infra-mcp tools for remote edits, Git sync, service control, and indexing before reaching for ad-hoc shell commands."
+reason = "Use remote-infra-mcp tools first. Ad-hoc remote shell causes extra permission prompts and weakens whole-system understanding."
 
 [rule]
 name = "block-local-destructive-shell"
@@ -46,8 +46,10 @@ match = [
   "git status",
   "git diff",
   "npm test",
+  "node packages/remote-infra-mcp/src/main.ts",
   "node scripts/refresh-index.ts",
   "node scripts/generate-expected-index.ts",
+  "node scripts/run-evals.ts",
   "docker compose -f lab/ssh_cluster/docker-compose.yml up",
   "docker compose -f lab/ssh_cluster/docker-compose.yml down"
 ]

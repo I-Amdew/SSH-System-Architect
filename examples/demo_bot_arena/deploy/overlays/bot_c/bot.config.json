@@ -1,0 +1,9 @@
+{
+  "id": "bot_c",
+  "name": "Cinder",
+  "color": "#70c1b3",
+  "listenPort": 5103,
+  "runtimeDir": "examples/demo_bot_arena/runtime/bot_c",
+  "strategy": "sweeper",
+  "seed": 7
+}

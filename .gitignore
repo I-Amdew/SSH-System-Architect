@@ -10,5 +10,6 @@ coverage/
 .codex/config.toml
 lab/ssh_cluster/.state/
 examples/demo_sharded_snake/runtime/
+examples/demo_bot_arena/runtime/
 .infra-index/*
 !.infra-index/.gitignore

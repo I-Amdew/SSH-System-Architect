@@ -1,4 +1,7 @@
 import { spawn } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 
 import type {
   CommandRequest,
@@ -7,6 +10,7 @@ import type {
   HostSnapshot,
   Inventory,
   RemoteFileWriteResult,
+  ServiceDefinition,
   ServiceRuntimeStatus
 } from "../../remote-infra-types/src/index.ts";
 import { classifyPath } from "./classification.ts";
@@ -21,6 +25,11 @@ export interface RemoteTransport {
 export interface MockHostState extends HostSnapshot {
   fileContents: Record<string, string>;
   logs?: Record<string, string[]>;
+}
+
+interface ExecuteOptions {
+  env?: NodeJS.ProcessEnv;
+  input?: string;
 }
 
 function parseBranchStatus(line: string): { branch: string; ahead: number; behind: number } {
@@ -231,9 +240,24 @@ function quoteForRemoteShell(value: string): string {
   return `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
-function execute(command: string, args: string[], input?: string): Promise<CommandResult> {
+function normalizeRepoRelativePath(host: HostDefinition, targetPath: string): string {
+  const normalizedRepoPath = host.repoPath.replaceAll("\\", "/").replace(/\/+$/u, "");
+  const normalizedTargetPath = targetPath.replaceAll("\\", "/");
+  if (normalizedTargetPath === normalizedRepoPath) {
+    return ".";
+  }
+  if (normalizedTargetPath.startsWith(`${normalizedRepoPath}/`)) {
+    return normalizedTargetPath.slice(normalizedRepoPath.length + 1);
+  }
+  return normalizedTargetPath;
+}
+
+function execute(command: string, args: string[], options?: ExecuteOptions): Promise<CommandResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(command, args, {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: options?.env ?? process.env
+    });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => {
@@ -246,8 +270,8 @@ function execute(command: string, args: string[], input?: string): Promise<Comma
     child.on("close", (code) => {
       resolve({ code: code ?? 1, stdout, stderr });
     });
-    if (input !== undefined) {
-      child.stdin.write(input, "utf8");
+    if (options?.input !== undefined) {
+      child.stdin.write(options.input, "utf8");
     }
     child.stdin.end();
   });
@@ -263,21 +287,130 @@ function buildRemoteCommand(host: HostDefinition, request: CommandRequest): stri
   return `${prefix}${cwdPrefix}${body}`;
 }
 
-function buildSshArgs(host: HostDefinition, remoteCommand: string): string[] {
-  return [
-    ...host.sshOptions,
-    "-p",
-    String(host.port),
-    `${host.sshUser}@${host.hostname}`,
-    remoteCommand
+function getSshConfigFile(): string | undefined {
+  const configured = process.env.SSH_CONFIG_FILE?.trim();
+  return configured ? configured : undefined;
+}
+
+function getSshTarget(host: HostDefinition): string {
+  return host.sshHostAlias || `${host.sshUser}@${host.hostname}`;
+}
+
+function buildSshArgs(host: HostDefinition, remoteCommand: string, usePasswordAuth = false): string[] {
+  const sshOptions = usePasswordAuth
+    ? host.sshOptions.filter((value, index, items) => {
+        if (value === "BatchMode=yes") {
+          return false;
+        }
+        if (value === "-o" && items[index + 1] === "BatchMode=yes") {
+          return false;
+        }
+        return items[index - 1] !== "-o" || value !== "BatchMode=yes";
+      })
+    : host.sshOptions;
+  const configFile = getSshConfigFile();
+  const args = [
+    ...(configFile ? ["-F", configFile] : []),
+    ...sshOptions
   ];
+
+  if (usePasswordAuth) {
+    args.push("-o", "BatchMode=no", "-o", "NumberOfPasswordPrompts=1");
+  }
+
+  if (!host.sshHostAlias) {
+    args.push("-p", String(host.port));
+  }
+
+  args.push(getSshTarget(host), remoteCommand);
+  return args;
+}
+
+function resolveSecretFromEnv(secretRef?: string): string | undefined {
+  if (!secretRef) {
+    return undefined;
+  }
+
+  if (secretRef.startsWith("env:")) {
+    const envKey = secretRef.slice(4);
+    return process.env[envKey];
+  }
+
+  return undefined;
+}
+
+async function createAskpassProgram(password: string): Promise<{ commandPath: string; cleanup: () => Promise<void> }> {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "ssh-system-architect-askpass-"));
+  if (process.platform === "win32") {
+    const scriptPath = path.join(directory, "askpass.js");
+    const commandPath = path.join(directory, "askpass.cmd");
+    await writeFile(scriptPath, `process.stdout.write(${JSON.stringify(`${password}\n`)});`, "utf8");
+    await writeFile(commandPath, `@echo off\r\nnode "%~dp0askpass.js"\r\n`, "utf8");
+    return {
+      commandPath,
+      cleanup: async () => rm(directory, { recursive: true, force: true })
+    };
+  }
+
+  const scriptPath = path.join(directory, "askpass.js");
+  const commandPath = path.join(directory, "askpass.sh");
+  await writeFile(scriptPath, `process.stdout.write(${JSON.stringify(`${password}\n`)});`, "utf8");
+  await writeFile(commandPath, `#!/bin/sh\nexec node "$(dirname "$0")/askpass.js"\n`, {
+    encoding: "utf8",
+    mode: 0o700
+  });
+  return {
+    commandPath,
+    cleanup: async () => rm(directory, { recursive: true, force: true })
+  };
+}
+
+async function executeSsh(host: HostDefinition, remoteCommand: string, input?: string): Promise<CommandResult> {
+  const passwordAuthEnabled = process.env.REMOTE_INFRA_ALLOW_PASSWORD_AUTH === "1";
+  const wantsPasswordAuth = (host.authMode === "password" || host.authMode === "env") && passwordAuthEnabled;
+  const secret = wantsPasswordAuth ? resolveSecretFromEnv(host.secretRef) : undefined;
+
+  if (host.authMode === "password" && !passwordAuthEnabled) {
+    return {
+      code: 1,
+      stdout: "",
+      stderr: "Password auth is disabled. Set REMOTE_INFRA_ALLOW_PASSWORD_AUTH=1 to opt in."
+    };
+  }
+
+  if (host.authMode === "password" && !secret) {
+    return {
+      code: 1,
+      stdout: "",
+      stderr: `No password secret resolved for ${host.id}. Use secret_ref: env:YOUR_VAR and export the variable locally.`
+    };
+  }
+
+  if (!secret) {
+    return execute("ssh", buildSshArgs(host, remoteCommand), { input });
+  }
+
+  const askpass = await createAskpassProgram(secret);
+  try {
+    return await execute("ssh", buildSshArgs(host, remoteCommand, true), {
+      input,
+      env: {
+        ...process.env,
+        DISPLAY: process.env.DISPLAY || "codex",
+        SSH_ASKPASS: askpass.commandPath,
+        SSH_ASKPASS_REQUIRE: "force"
+      }
+    });
+  } finally {
+    await askpass.cleanup();
+  }
 }
 
 async function collectRemoteFiles(host: HostDefinition, basePath: string): Promise<string[]> {
   const request: CommandRequest = {
     argv: ["sh", "-lc", `if [ -d ${quoteForRemoteShell(basePath)} ]; then find ${quoteForRemoteShell(basePath)} -type f | sort; fi`]
   };
-  const result = await execute("ssh", buildSshArgs(host, buildRemoteCommand(host, request)));
+  const result = await executeSsh(host, buildRemoteCommand(host, request));
   if (result.code !== 0) {
     return [];
   }
@@ -295,9 +428,33 @@ function toServiceStatus(host: HostDefinition, serviceName: string, output: stri
   };
 }
 
+async function collectServiceStatus(
+  transport: SshTransport,
+  host: HostDefinition,
+  service: ServiceDefinition
+): Promise<ServiceRuntimeStatus> {
+  if (service.manager !== "systemd") {
+    return {
+      name: service.name,
+      unit: service.unit,
+      state: "unknown",
+      detail:
+        service.manager === "none"
+          ? "No service manager configured; rely on health checks or explicit launch tooling."
+          : `Service manager ${service.manager} is not implemented by the OpenSSH transport yet.`
+    };
+  }
+
+  const result = await transport.exec(host, {
+    argv: ["systemctl", "status", service.unit, "--no-pager"],
+    requiresPrivilege: service.restartRequiresPrivilege ?? false
+  });
+  return toServiceStatus(host, service.name, result.stdout || result.stderr);
+}
+
 export class SshTransport implements RemoteTransport {
   async readFile(host: HostDefinition, targetPath: string): Promise<string> {
-    const result = await execute("ssh", buildSshArgs(host, `cat -- ${quoteForRemoteShell(targetPath)}`));
+    const result = await executeSsh(host, `cat -- ${quoteForRemoteShell(targetPath)}`);
     if (result.code !== 0) {
       throw new Error(result.stderr || `Unable to read remote file ${targetPath}`);
     }
@@ -306,11 +463,7 @@ export class SshTransport implements RemoteTransport {
 
   async writeFile(host: HostDefinition, targetPath: string, contents: string): Promise<RemoteFileWriteResult> {
     const remoteCommand = `mkdir -p $(dirname ${quoteForRemoteShell(targetPath)}) && cat > ${quoteForRemoteShell(targetPath)}`;
-    const result = await execute(
-      "ssh",
-      buildSshArgs(host, remoteCommand),
-      contents
-    );
+    const result = await executeSsh(host, remoteCommand, contents);
     if (result.code !== 0) {
       throw new Error(result.stderr || `Unable to write remote file ${targetPath}`);
     }
@@ -318,7 +471,7 @@ export class SshTransport implements RemoteTransport {
   }
 
   async exec(host: HostDefinition, request: CommandRequest): Promise<CommandResult> {
-    return execute("ssh", buildSshArgs(host, buildRemoteCommand(host, request)));
+    return executeSsh(host, buildRemoteCommand(host, request));
   }
 
   async collectSnapshot(host: HostDefinition, inventory: Inventory): Promise<HostSnapshot> {
@@ -335,7 +488,7 @@ export class SshTransport implements RemoteTransport {
       ...(await Promise.all(
         host.overlayPaths.map(async (overlayPath) =>
           (await collectRemoteFiles(host, `${host.repoPath}/${overlayPath}`)).map((entry) => ({
-            path: entry,
+            path: normalizeRepoRelativePath(host, entry),
             kind: classifyPath(inventory, host, entry),
             tracked: true,
             exists: true
@@ -346,7 +499,7 @@ export class SshTransport implements RemoteTransport {
         host.runtimePaths.map(async (runtimePath) =>
           (await collectRemoteFiles(host, runtimePath.startsWith("/") ? runtimePath : `${host.repoPath}/${runtimePath}`)).map(
             (entry) => ({
-              path: entry,
+              path: normalizeRepoRelativePath(host, entry),
               kind: classifyPath(inventory, host, entry),
               tracked: false,
               exists: true
@@ -369,23 +522,18 @@ export class SshTransport implements RemoteTransport {
         notes: "Untracked file"
       }))
     ];
-
-    const serviceStatus = await Promise.all(
-      host.services.map(async (service) => {
-        const result = await this.exec(host, {
-          argv: ["systemctl", "status", service.unit, "--no-pager"],
-          requiresPrivilege: service.restartRequiresPrivilege ?? false
-        });
-        return toServiceStatus(host, service.name, result.stdout || result.stderr);
-      })
+    const dedupedFiles = Array.from(
+      new Map(files.map((entry) => [`${entry.kind}:${entry.path}`, entry] as const)).values()
     );
+
+    const serviceStatus = await Promise.all(host.services.map((service) => collectServiceStatus(this, host, service)));
 
     return {
       hostId: host.id,
       deployedCommit,
       intendedCommit: host.intendedCommit ?? inventory.repo.intendedCommit,
       repoStatus,
-      files,
+      files: dedupedFiles,
       serviceStatus,
       roleSummary: host.notes
     };

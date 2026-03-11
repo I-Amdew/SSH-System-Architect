@@ -106,7 +106,78 @@ test("orchestrator patches remote content, reports state, and refreshes indexes"
   const repoDiscovery = await orchestrator.discoverHostRepos("host_a");
   assert.ok(Array.isArray(repoDiscovery.repos));
 
+  const inspection = await orchestrator.inspectSystem({
+    outputRoot,
+    refreshIndexes: true
+  });
+  assert.equal(inspection.hostIds.length, 2);
+  assert.equal(inspection.networkHealth.results[0].sshReachable, true);
+  assert.equal(inspection.indexes?.outputRoot, outputRoot);
+
   const bootstrapResult = await orchestrator.bootstrapHost("host_a");
   assert.equal(bootstrapResult.hostId, "host_a");
   assert.ok(Array.isArray(bootstrapResult.createdDirectories));
+});
+
+test("orchestrator respects service manager metadata for non-systemd hosts", async () => {
+  const inventory = await loadInventory(path.join(workspaceRoot, "lab/ssh_cluster/inventory.compact.yml"));
+  inventory.hosts[1].services = [
+    {
+      name: "bot_runtime",
+      manager: "none",
+      unit: "bot-runtime",
+      description: "Manually launched bot runtime"
+    }
+  ];
+
+  const transport = new MockTransport([
+    {
+      hostId: "host_a",
+      deployedCommit: "7d9e3aa",
+      intendedCommit: "7d9e3aa",
+      repoStatus: {
+        branch: "main",
+        head: "7d9e3aa",
+        clean: true,
+        ahead: 0,
+        behind: 0,
+        modified: [],
+        deleted: [],
+        untracked: []
+      },
+      files: [],
+      serviceStatus: [],
+      fileContents: {}
+    },
+    {
+      hostId: "host_b",
+      deployedCommit: "7d9e3aa",
+      intendedCommit: "7d9e3aa",
+      repoStatus: {
+        branch: "main",
+        head: "7d9e3aa",
+        clean: true,
+        ahead: 0,
+        behind: 0,
+        modified: [],
+        deleted: [],
+        untracked: []
+      },
+      files: [],
+      serviceStatus: [],
+      fileContents: {}
+    }
+  ]);
+
+  const orchestrator = new RemoteInfraOrchestrator(inventory, transport, {
+    workspaceRoot
+  });
+
+  const status = await orchestrator.serviceStatus("host_b", "bot_runtime");
+  assert.match(String(status[0]?.stdout), /No service manager configured/);
+
+  await assert.rejects(
+    () => orchestrator.restartService("host_b", "bot_runtime"),
+    /does not declare a service manager/
+  );
 });

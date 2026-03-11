@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>demo_bot_arena</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "IBM Plex Sans", sans-serif;
+        background: radial-gradient(circle at top, #243744, #0c1118 58%);
+        color: #eef3f8;
+        padding: 24px;
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: grid;
+        gap: 18px;
+      }
+      .hero, .panel {
+        background: rgba(9, 16, 24, 0.82);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 18px;
+        padding: 18px;
+      }
+      .arena {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: 1.8fr 1fr;
+      }
+      canvas {
+        width: 100%;
+        aspect-ratio: 24 / 14;
+        background: #081016;
+        border-radius: 14px;
+        display: block;
+      }
+      .scoreboard {
+        display: grid;
+        gap: 10px;
+      }
+      .score-row {
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.05);
+        display: flex;
+        justify-content: space-between;
+      }
+      ul { margin: 0; padding-left: 18px; }
+      @media (max-width: 860px) {
+        .arena { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <h1>demo_bot_arena</h1>
+        <p>One coordinator host runs the match and dashboard. Four bot hosts only expose decisions to the coordinator.</p>
+        <div id="meta">tick: 0</div>
+      </section>
+      <section class="arena">
+        <div class="panel">
+          <canvas id="arena" width="960" height="560"></canvas>
+        </div>
+        <div class="panel">
+          <h2>Scoreboard</h2>
+          <div class="scoreboard" id="scoreboard"></div>
+          <h2>Recent events</h2>
+          <ul id="events"></ul>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/client.js"></script>
+  </body>
+</html>

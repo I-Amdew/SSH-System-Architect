@@ -114,6 +114,8 @@ test("MCP server lists tools and hosts in mock mode", async () => {
   };
 
   assert.ok(toolList.result.tools.some((tool) => tool.name === "refresh_indexes"));
+  assert.ok(toolList.result.tools.some((tool) => tool.name === "inspect_system"));
   assert.ok(toolList.result.tools.some((tool) => tool.name === "bootstrap_host"));
+  assert.ok(toolList.result.tools.some((tool) => tool.name === "import_ssh_config_hosts"));
   assert.equal(hostList.result.structuredContent[0].id, "host_a");
 });

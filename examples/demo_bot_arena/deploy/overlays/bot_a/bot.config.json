@@ -1,0 +1,9 @@
+{
+  "id": "bot_a",
+  "name": "Amber",
+  "color": "#f25f5c",
+  "listenPort": 5101,
+  "runtimeDir": "examples/demo_bot_arena/runtime/bot_a",
+  "strategy": "greedy",
+  "seed": 3
+}

@@ -20,7 +20,10 @@
     "packages/*",
     "examples/demo_sharded_snake/apps/*",
     "examples/demo_sharded_snake/services/*",
-    "examples/demo_sharded_snake/packages/*"
+    "examples/demo_sharded_snake/packages/*",
+    "examples/demo_bot_arena/apps/*",
+    "examples/demo_bot_arena/services/*",
+    "examples/demo_bot_arena/packages/*"
   ],
   "scripts": {
     "mcp:start": "node packages/remote-infra-mcp/src/main.ts",
@@ -28,6 +31,8 @@
     "index:example": "node scripts/generate-expected-index.ts",
     "demo:gateway": "node examples/demo_sharded_snake/apps/web_gateway/src/main.ts",
     "demo:shard": "node examples/demo_sharded_snake/services/snake_shard/src/main.ts",
+    "demo:arena:coordinator": "node examples/demo_bot_arena/services/match_coordinator/src/main.ts",
+    "demo:arena:bot": "node examples/demo_bot_arena/services/snake_bot/src/main.ts",
     "test": "node scripts/run-tests.ts unit integration",
     "test:unit": "node scripts/run-tests.ts unit",
     "test:integration": "node scripts/run-tests.ts integration",

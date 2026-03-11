@@ -51,6 +51,20 @@ export const TOOL_DEFINITIONS = [
     }
   },
   {
+    name: "import_ssh_config_hosts",
+    description: "Import host aliases from an existing OpenSSH config file and emit inventory-ready stubs.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        configPath: { type: "string" },
+        aliases: {
+          type: "array",
+          items: { type: "string" }
+        }
+      }
+    }
+  },
+  {
     name: "explain_host_role",
     description: "Explain a host role, deployment intent, overlays, runtime paths, and services.",
     inputSchema: {
@@ -261,6 +275,24 @@ export const TOOL_DEFINITIONS = [
           type: "array",
           items: { type: "string" }
         }
+      }
+    }
+  },
+  {
+    name: "inspect_system",
+    description: "Inspect the whole managed system in one call: topology, host roles, health, repo state, repo discovery, drift classification, and optional index refresh.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        outputRoot: { type: "string" },
+        exhaustiveFiles: { type: "boolean" },
+        clusterId: { type: "string" },
+        hostIds: {
+          type: "array",
+          items: { type: "string" }
+        },
+        refreshIndexes: { type: "boolean" },
+        includeRepoDiscovery: { type: "boolean" }
       }
     }
   },

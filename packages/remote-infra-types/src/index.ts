@@ -53,6 +53,7 @@ export interface HostDefinition {
   port: number;
   sshUser: string;
   sshImplementation: SshImplementation;
+  sshHostAlias?: string;
   sshOptions: string[];
   authMode: AuthMode;
   secretRef?: string;
@@ -194,6 +195,7 @@ export interface GenerateIndexOptions {
   outputRoot: string;
   workspaceRoot: string;
   exhaustiveFiles?: boolean;
+  inspection?: InfraIndexInspectionMetadata;
 }
 
 export interface TopologySummary {
@@ -224,6 +226,18 @@ export interface HostComparison {
   overlays: HostFileEntry[];
   runtimeOnly: HostFileEntry[];
   drift: HostFileEntry[];
+}
+
+export interface InfraIndexInspectionMetadata {
+  generatedAt: string;
+  topology?: TopologySummary;
+  networkHealth?: {
+    clusterId?: string;
+    hostIds: string[];
+    results: ConnectivityCheckResult[];
+  };
+  repoDiscovery?: RepoDiscoveryResult[];
+  comparisons?: HostComparison[];
 }
 
 export interface ConnectivityCheckResult {
@@ -259,4 +273,63 @@ export interface ClusterActionResult<T> {
     hostId: string;
     result: T;
   }>;
+}
+
+export interface ImportedSshConfigHost {
+  alias: string;
+  hostname?: string;
+  user?: string;
+  port?: number;
+  identityFile?: string;
+  extraOptions: Record<string, string>;
+}
+
+export interface ImportedSshConfigResult {
+  configPath: string;
+  hosts: ImportedSshConfigHost[];
+  inventoryStubs: Array<{
+    id: string;
+    sshHostAlias: string;
+    hostname: string;
+    port: number;
+    sshUser: string;
+    sshOptions: string[];
+  }>;
+}
+
+export interface SystemInspectionResult {
+  generatedAt: string;
+  clusterId?: string;
+  hostIds: string[];
+  topology: TopologySummary;
+  hostRoles: Array<{
+    hostId: string;
+    roles: string[];
+    clusters: string[];
+    sshImplementation: SshImplementation;
+    sshHostAlias?: string;
+    managedScopes: string[];
+    services: string[];
+    overlays: string[];
+    runtimePaths: string[];
+    existingRepos: ManagedRepoDefinition[];
+    intent: string;
+  }>;
+  repoStates: HostSnapshot[];
+  comparisons: HostComparison[];
+  networkHealth: {
+    clusterId?: string;
+    hostIds: string[];
+    results: ConnectivityCheckResult[];
+  };
+  repoDiscovery: RepoDiscoveryResult[];
+  indexes?: {
+    outputRoot: string;
+    hosts: Array<{
+      hostId: string;
+      clean: boolean;
+      deployedCommit: string;
+      intendedCommit: string;
+    }>;
+  };
 }
